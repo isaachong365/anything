@@ -1,317 +1,250 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Circle Arena</title>
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: #0f0f14;
-      font-family: Arial, sans-serif;
-      color: white;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Glow Survival</title>
 
-    canvas {
-      display: block;
-      background: radial-gradient(circle at center, #1a1a25, #0a0a0f);
-    }
+<style>
+html, body {
+    margin: 0;
+    overflow: hidden;
+    background: #0a0a12;
+    touch-action: none;
+    font-family: Arial;
+}
 
-    #ui {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 10;
-      font-size: 18px;
-      line-height: 1.8;
-    }
+canvas {
+    display: block;
+}
 
-    #upgradeMenu {
-      position: absolute;
-      inset: 0;
-      background: rgba(0,0,0,0.75);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 20px;
-      z-index: 20;
-    }
+#score {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    color: white;
+    font-size: 28px;
+    font-weight: bold;
+}
 
-    .upgrade-btn {
-      width: 280px;
-      padding: 15px;
-      border: none;
-      border-radius: 12px;
-      background: #2d2d44;
-      color: white;
-      cursor: pointer;
-      font-size: 18px;
-      transition: 0.2s;
-    }
+#gameOver {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: white;
+    display: none;
+}
 
-    .upgrade-btn:hover {
-      transform: scale(1.05);
-      background: #43436a;
-    }
-
-    #gameOver {
-      position: absolute;
-      inset: 0;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      background: rgba(0,0,0,0.8);
-      z-index: 30;
-    }
-
-    #restartBtn {
-      padding: 14px 24px;
-      font-size: 18px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-    }
-  </style>
+button {
+    padding: 16px 32px;
+    border: none;
+    border-radius: 15px;
+    font-size: 24px;
+    margin-top: 20px;
+    background: #00e5ff;
+    color: black;
+    font-weight: bold;
+}
+</style>
 </head>
+
 <body>
-  <div id="ui">
-    <div>Wave: <span id="wave">1</span></div>
-    <div>HP: <span id="hp">100</span></div>
-    <div>Kills: <span id="kills">0</span></div>
-  </div>
 
-  <div id="upgradeMenu">
-    <h1>Choose an Upgrade</h1>
-    <button class="upgrade-btn" onclick="selectUpgrade('speed')">⚡ Faster Movement</button>
-    <button class="upgrade-btn" onclick="selectUpgrade('size')">🛡 Bigger Player</button>
-    <button class="upgrade-btn" onclick="selectUpgrade('regen')">💚 Health Regeneration</button>
-    <button class="upgrade-btn" onclick="selectUpgrade('damage')">⚔️increase damage</button>
-  </div>
+<div id="score">Score: 0</div>
 
-  <div id="gameOver">
+<div id="gameOver">
     <h1>Game Over</h1>
-    <button id="restartBtn" onclick="restartGame()">Restart</button>
-  </div>
+    <button onclick="restartGame()">Play Again</button>
+</div>
 
-  <canvas id="game"></canvas>
+<canvas id="game"></canvas>
 
-  <script>
-    const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d');
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-    const ui = {
-      wave: document.getElementById('wave'),
-      hp: document.getElementById('hp'),
-      kills: document.getElementById('kills')
-    };
+const scoreText = document.getElementById("score");
+const gameOverScreen = document.getElementById("gameOver");
 
-    const player = {
-      x: canvas.width / 2,
-      y: canvas.height / 2,
-      radius: 20,
-      speed: 4,
-      hp: 100,
-      regen: 0
-    };
+let touchX = canvas.width / 2;
+let touchY = canvas.height / 2;
 
-    let keys = {};
-    let enemies = [];
-    let particles = [];
-    let kills = 0;
-    let wave = 1;
-    let paused = false;
+document.addEventListener("touchmove", e => {
+    touchX = e.touches[0].clientX;
+    touchY = e.touches[0].clientY;
+}, { passive: false });
 
-    class Enemy {
-      constructor() {
-        const side = Math.floor(Math.random() * 4);
+document.addEventListener("mousemove", e => {
+    touchX = e.clientX;
+    touchY = e.clientY;
+});
+
+class Player {
+    constructor() {
+        this.x = canvas.width / 2;
+        this.y = canvas.height / 2;
+        this.radius = 22;
+    }
+
+    update() {
+        this.x += (touchX - this.x) * 0.15;
+        this.y += (touchY - this.y) * 0.15;
+    }
+
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#00e5ff";
+        ctx.shadowBlur = 25;
+        ctx.shadowColor = "#00e5ff";
+        ctx.fill();
+    }
+}
+
+class Enemy {
+    constructor() {
+        this.radius = Math.random() * 25 + 15;
+
+        let side = Math.floor(Math.random() * 4);
 
         if (side === 0) {
-          this.x = 0;
-          this.y = Math.random() * canvas.height;
+            this.x = -50;
+            this.y = Math.random() * canvas.height;
         } else if (side === 1) {
-          this.x = canvas.width;
-          this.y = Math.random() * canvas.height;
+            this.x = canvas.width + 50;
+            this.y = Math.random() * canvas.height;
         } else if (side === 2) {
-          this.x = Math.random() * canvas.width;
-          this.y = 0;
+            this.x = Math.random() * canvas.width;
+            this.y = -50;
         } else {
-          this.x = Math.random() * canvas.width;
-          this.y = canvas.height;
+            this.x = Math.random() * canvas.width;
+            this.y = canvas.height + 50;
         }
 
-        this.radius = 12 + Math.random() * 10;
-        this.speed = 1 + Math.random() * 1.5 + wave * 0.15;
-      }
+        this.speed = Math.random() * 2 + 1;
+        this.color = `hsl(${Math.random() * 360},100%,60%)`;
+    }
 
-      update() {
-        const dx = player.x - this.x;
-        const dy = player.y - this.y;
-        const dist = Math.hypot(dx, dy);
+    update(player) {
+        let angle = Math.atan2(player.y - this.y, player.x - this.x);
 
-        this.x += (dx / dist) * this.speed;
-        this.y += (dy / dist) * this.speed;
-      }
+        this.x += Math.cos(angle) * this.speed;
+        this.y += Math.sin(angle) * this.speed;
+    }
 
-      draw() {
-        ctx.fillStyle = '#ff4d6d';
+    draw() {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = this.color;
         ctx.fill();
-      }
+    }
+}
+
+class Gem {
+    constructor() {
+        this.radius = 12;
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
     }
 
-    class Particle {
-      constructor(x, y) {
-        this.x = x;
-        this.y = y;
-        this.vx = (Math.random() - 0.5) * 8;
-        this.vy = (Math.random() - 0.5) * 8;
-        this.life = 40;
-        this.radius = Math.random() * 4;
-      }
-
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.life--;
-      }
-
-      draw() {
-        ctx.fillStyle = `rgba(255,255,255,${this.life / 40})`;
+    draw() {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#ffe600";
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = "#ffe600";
         ctx.fill();
-      }
+    }
+}
+
+let player;
+let enemies;
+let gem;
+let score;
+let running;
+
+function startGame() {
+    player = new Player();
+    enemies = [];
+    gem = new Gem();
+    score = 0;
+    running = true;
+
+    gameOverScreen.style.display = "none";
+
+    spawnEnemies();
+
+    animate();
+}
+
+function spawnEnemies() {
+    if (!running) return;
+
+    enemies.push(new Enemy());
+
+    let delay = Math.max(300, 1200 - score * 2);
+
+    setTimeout(spawnEnemies, delay);
+}
+
+function animate() {
+    if (!running) return;
+
+    requestAnimationFrame(animate);
+
+    ctx.fillStyle = "rgba(10,10,18,0.25)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    player.update();
+    player.draw();
+
+    gem.draw();
+
+    let gemDist = Math.hypot(player.x - gem.x, player.y - gem.y);
+
+    if (gemDist < player.radius + gem.radius) {
+        score += 10;
+        gem = new Gem();
     }
 
-    function spawnEnemy() {
-      enemies.push(new Enemy());
-    }
+    enemies.forEach(enemy => {
+        enemy.update(player);
+        enemy.draw();
 
-    setInterval(() => {
-      if (!paused) spawnEnemy();
-    }, 900 - Math.min(wave * 40, 600));
-
-    function update() {
-      if (paused) return;
-
-      if (keys['w']) player.y -= player.speed;
-      if (keys['s']) player.y += player.speed;
-      if (keys['a']) player.x -= player.speed;
-      if (keys['d']) player.x += player.speed;
-
-      player.hp += player.regen;
-      if (player.hp > 100) player.hp = 100;
-
-      enemies.forEach((enemy, index) => {
-        enemy.update();
-
-        const dx = player.x - enemy.x;
-        const dy = player.y - enemy.y;
-        const dist = Math.hypot(dx, dy);
+        let dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
 
         if (dist < player.radius + enemy.radius) {
-          player.hp -= 0.5;
-
-          for (let i = 0; i < 6; i++) {
-            particles.push(new Particle(enemy.x, enemy.y));
-          }
-
-          if (player.hp <= 0) {
             endGame();
-          }
         }
-
-        if (dist < player.radius) {
-          enemies.splice(index, 1);
-          kills++;
-
-          for (let i = 0; i < 12; i++) {
-            particles.push(new Particle(enemy.x, enemy.y));
-          }
-        }
-      });
-
-      particles.forEach((particle, index) => {
-        particle.update();
-
-        if (particle.life <= 0) {
-          particles.splice(index, 1);
-        }
-      });
-
-      if (kills >= wave * 10) {
-        paused = true;
-        wave++;
-        document.getElementById('upgradeMenu').style.display = 'flex';
-      }
-
-      ui.wave.textContent = wave;
-      ui.hp.textContent = Math.floor(player.hp);
-      ui.kills.textContent = kills;
-    }
-
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      ctx.fillStyle = '#4cc9f0';
-      ctx.beginPath();
-      ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-      ctx.fill();
-
-      enemies.forEach(enemy => enemy.draw());
-      particles.forEach(particle => particle.draw());
-    }
-
-    function gameLoop() {
-      update();
-      draw();
-      requestAnimationFrame(gameLoop);
-    }
-
-    function selectUpgrade(type) {
-      if (type === 'speed') {
-        player.speed += 1;
-      }
-
-      if (type === 'size') {
-        player.radius += 4;
-      }
-
-      if (type === 'regen') {
-        player.regen += 0.03;
-      }
-      if (type==='increase damage'){
-        player.increase damage += 10;
-      document.getElementById('upgradeMenu').style.display = 'none';
-      paused = false;
-    }
-
-    function endGame() {
-      paused = true;
-      document.getElementById('gameOver').style.display = 'flex';
-    }
-
-    function restartGame() {
-      location.reload();
-    }
-
-    window.addEventListener('keydown', e => {
-      keys[e.key.toLowerCase()] = true;
     });
 
-    window.addEventListener('keyup', e => {
-      keys[e.key.toLowerCase()] = false;
-    });
-    
-    gameLoop();
-  </script>
+    score++;
+    scoreText.innerText = "Score: " + score;
+}
+
+function endGame() {
+    running = false;
+    gameOverScreen.style.display = "block";
+}
+
+function restartGame() {
+    startGame();
+}
+
+window.addEventListener("resize", () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
+
+startGame();
+</script>
+
 </body>
 </html>
