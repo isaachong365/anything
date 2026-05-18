@@ -242,6 +242,10 @@ window.addEventListener("resize", () => {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 });
+    canvas.style.transform = "translate(5px, 0)";
+setTimeout(() => {
+  canvas.style.transform = "translate(0, 0)";
+}, 50);
 
 startGame();
 </script>
