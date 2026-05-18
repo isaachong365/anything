@@ -2,29 +2,42 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Glow Survival</title>
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+<title>Glow Survival+</title>
 
 <style>
 html, body {
     margin: 0;
     overflow: hidden;
-    background: #0a0a12;
+    background: #090b14;
     touch-action: none;
-    font-family: Arial;
+    user-select: none;
+    font-family: Arial, sans-serif;
 }
 
 canvas {
     display: block;
 }
 
-#score {
+#ui {
     position: absolute;
     top: 15px;
     left: 15px;
     color: white;
-    font-size: 28px;
+    z-index: 10;
+}
+
+#score {
+    font-size: 30px;
     font-weight: bold;
+}
+
+#combo {
+    font-size: 20px;
+    color: #ffe600;
+    margin-top: 5px;
 }
 
 #gameOver {
@@ -35,28 +48,48 @@ canvas {
     text-align: center;
     color: white;
     display: none;
+    z-index: 20;
+}
+
+#gameOver h1 {
+    font-size: 60px;
+    margin: 0;
+}
+
+#finalScore {
+    font-size: 28px;
+    margin-top: 10px;
 }
 
 button {
+    margin-top: 20px;
     padding: 16px 32px;
     border: none;
-    border-radius: 15px;
-    font-size: 24px;
-    margin-top: 20px;
+    border-radius: 16px;
     background: #00e5ff;
     color: black;
+    font-size: 24px;
     font-weight: bold;
+    cursor: pointer;
+}
+
+button:active {
+    transform: scale(0.95);
 }
 </style>
 </head>
 
 <body>
 
-<div id="score">Score: 0</div>
+<div id="ui">
+    <div id="score">Score: 0</div>
+    <div id="combo">x1</div>
+</div>
 
 <div id="gameOver">
-    <h1>Game Over</h1>
-    <button onclick="restartGame()">Play Again</button>
+    <h1>GAME OVER</h1>
+    <div id="finalScore">Score: 0</div>
+    <button onclick="restartGame()">PLAY AGAIN</button>
 </div>
 
 <canvas id="game"></canvas>
@@ -65,24 +98,40 @@ button {
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+canvas.width = innerWidth;
+canvas.height = innerHeight;
 
 const scoreText = document.getElementById("score");
+const comboText = document.getElementById("combo");
 const gameOverScreen = document.getElementById("gameOver");
+const finalScoreText = document.getElementById("finalScore");
 
 let touchX = canvas.width / 2;
 let touchY = canvas.height / 2;
 
-document.addEventListener("touchmove", e => {
-    touchX = e.touches[0].clientX;
-    touchY = e.touches[0].clientY;
-}, { passive: false });
+let player;
+let enemies = [];
+let gems = [];
+let particles = [];
+
+let score = 0;
+let combo = 1;
+let running = false;
+
+let spawnTimeout;
+let lastTime = 0;
 
 document.addEventListener("mousemove", e => {
     touchX = e.clientX;
     touchY = e.clientY;
 });
+
+document.addEventListener("touchmove", e => {
+    e.preventDefault();
+
+    touchX = e.touches[0].clientX;
+    touchY = e.touches[0].clientY;
+}, { passive: false });
 
 class Player {
     constructor() {
@@ -92,46 +141,60 @@ class Player {
     }
 
     update() {
-        this.x += (touchX - this.x) * 0.15;
-        this.y += (touchY - this.y) * 0.15;
+        this.x += (touchX - this.x) * 0.12;
+        this.y += (touchY - this.y) * 0.12;
     }
 
     draw() {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+
         ctx.fillStyle = "#00e5ff";
         ctx.shadowBlur = 25;
         ctx.shadowColor = "#00e5ff";
+
         ctx.fill();
     }
 }
 
 class Enemy {
     constructor() {
-        this.radius = Math.random() * 25 + 15;
 
-        let side = Math.floor(Math.random() * 4);
+        this.radius = Math.random() * 20 + 16;
+
+        const side = Math.floor(Math.random() * 4);
 
         if (side === 0) {
             this.x = -50;
             this.y = Math.random() * canvas.height;
-        } else if (side === 1) {
+        }
+
+        if (side === 1) {
             this.x = canvas.width + 50;
             this.y = Math.random() * canvas.height;
-        } else if (side === 2) {
+        }
+
+        if (side === 2) {
             this.x = Math.random() * canvas.width;
             this.y = -50;
-        } else {
+        }
+
+        if (side === 3) {
             this.x = Math.random() * canvas.width;
             this.y = canvas.height + 50;
         }
 
-        this.speed = Math.random() * 2 + 1;
-        this.color = `hsl(${Math.random() * 360},100%,60%)`;
+        this.speed = Math.random() * 2 + 1.5;
+
+        this.color =
+        `hsl(${Math.random() * 360},100%,60%)`;
     }
 
-    update(player) {
-        let angle = Math.atan2(player.y - this.y, player.x - this.x);
+    update() {
+
+        const angle =
+        Math.atan2(player.y - this.y,
+                   player.x - this.x);
 
         this.x += Math.cos(angle) * this.speed;
         this.y += Math.sin(angle) * this.speed;
@@ -139,99 +202,245 @@ class Enemy {
 
     draw() {
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+
+        ctx.arc(this.x, this.y,
+        this.radius, 0, Math.PI * 2);
+
         ctx.fillStyle = this.color;
+
         ctx.shadowBlur = 20;
         ctx.shadowColor = this.color;
+
         ctx.fill();
     }
 }
 
 class Gem {
     constructor() {
+
         this.radius = 12;
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
+
+        this.x =
+        Math.random() * (canvas.width - 100) + 50;
+
+        this.y =
+        Math.random() * (canvas.height - 100) + 50;
     }
 
     draw() {
+
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+
+        ctx.arc(this.x, this.y,
+        this.radius, 0, Math.PI * 2);
+
         ctx.fillStyle = "#ffe600";
+
         ctx.shadowBlur = 20;
         ctx.shadowColor = "#ffe600";
+
         ctx.fill();
     }
 }
 
-let player;
-let enemies;
-let gem;
-let score;
-let running;
+class Particle {
+    constructor(x, y, color) {
+
+        this.x = x;
+        this.y = y;
+
+        this.size = Math.random() * 5 + 2;
+
+        this.speedX = (Math.random() - 0.5) * 8;
+        this.speedY = (Math.random() - 0.5) * 8;
+
+        this.life = 40;
+
+        this.color = color;
+    }
+
+    update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+
+        this.life--;
+    }
+
+    draw() {
+
+        ctx.globalAlpha = this.life / 40;
+
+        ctx.beginPath();
+
+        ctx.arc(this.x, this.y,
+        this.size, 0, Math.PI * 2);
+
+        ctx.fillStyle = this.color;
+        ctx.fill();
+
+        ctx.globalAlpha = 1;
+    }
+}
+
+function createExplosion(x, y, color) {
+
+    for (let i = 0; i < 15; i++) {
+
+        particles.push(
+            new Particle(x, y, color)
+        );
+    }
+}
+
+function spawnEnemies() {
+
+    if (!running) return;
+
+    enemies.push(new Enemy());
+
+    const delay =
+    Math.max(250, 1200 - score * 2);
+
+    spawnTimeout =
+    setTimeout(spawnEnemies, delay);
+}
+
+function updateCombo() {
+
+    if (score > 300) {
+        combo = 10;
+        comboText.innerText = "MEGA COMBO x10";
+    }
+
+    else if (score > 200) {
+        combo = 5;
+        comboText.innerText = "x5";
+    }
+
+    else if (score > 100) {
+        combo = 2;
+        comboText.innerText = "x2";
+    }
+
+    else {
+        combo = 1;
+        comboText.innerText = "x1";
+    }
+}
+
+function animate(timestamp) {
+
+    if (!running) return;
+
+    requestAnimationFrame(animate);
+
+    const delta = timestamp - lastTime;
+    lastTime = timestamp;
+
+    ctx.fillStyle = "rgba(9,11,20,0.25)";
+    ctx.fillRect(0, 0,
+    canvas.width, canvas.height);
+
+    player.update();
+    player.draw();
+
+    gems.forEach((gem, gemIndex) => {
+
+        gem.draw();
+
+        const dist =
+        Math.hypot(player.x - gem.x,
+                   player.y - gem.y);
+
+        if (dist < player.radius + gem.radius) {
+
+            score += 10 * combo;
+
+            createExplosion(
+                gem.x,
+                gem.y,
+                "#ffe600"
+            );
+
+            gems.splice(gemIndex, 1);
+
+            gems.push(new Gem());
+
+            updateCombo();
+        }
+    });
+
+    enemies.forEach((enemy, enemyIndex) => {
+
+        enemy.update();
+        enemy.draw();
+
+        const dist =
+        Math.hypot(player.x - enemy.x,
+                   player.y - enemy.y);
+
+        if (dist <
+            player.radius + enemy.radius) {
+
+            endGame();
+        }
+    });
+
+    particles.forEach((particle, index) => {
+
+        particle.update();
+        particle.draw();
+
+        if (particle.life <= 0) {
+            particles.splice(index, 1);
+        }
+    });
+
+    score += delta * 0.01;
+
+    scoreText.innerText =
+    "Score: " + Math.floor(score);
+}
 
 function startGame() {
-    player = new Player();
-    enemies = [];
-    gem = new Gem();
+
     score = 0;
+    combo = 1;
+
+    enemies = [];
+    gems = [];
+    particles = [];
+
+    player = new Player();
+
+    gems.push(new Gem());
+
     running = true;
 
     gameOverScreen.style.display = "none";
 
     spawnEnemies();
 
-    animate();
-}
-
-function spawnEnemies() {
-    if (!running) return;
-
-    enemies.push(new Enemy());
-
-    let delay = Math.max(300, 1200 - score * 2);
-
-    setTimeout(spawnEnemies, delay);
-}
-
-function animate() {
-    if (!running) return;
-
     requestAnimationFrame(animate);
-
-    ctx.fillStyle = "rgba(10,10,18,0.25)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    player.update();
-    player.draw();
-
-    gem.draw();
-
-    let gemDist = Math.hypot(player.x - gem.x, player.y - gem.y);
-
-    if (gemDist < player.radius + gem.radius) {
-        score += 10;
-        gem = new Gem();
-    }
-
-    enemies.forEach(enemy => {
-        enemy.update(player);
-        enemy.draw();
-
-        let dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
-
-        if (dist < player.radius + enemy.radius) {
-            endGame();
-        }
-    });
-
-    score++;
-    scoreText.innerText = "Score: " + score;
 }
 
 function endGame() {
+
     running = false;
+
+    clearTimeout(spawnTimeout);
+
+    finalScoreText.innerText =
+    "Score: " + Math.floor(score);
+
     gameOverScreen.style.display = "block";
+
+    canvas.style.transform = "translate(10px,0)";
+
+    setTimeout(() => {
+        canvas.style.transform =
+        "translate(0,0)";
+    }, 80);
 }
 
 function restartGame() {
@@ -239,28 +448,10 @@ function restartGame() {
 }
 
 window.addEventListener("resize", () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+
+    canvas.width = innerWidth;
+    canvas.height = innerHeight;
 });
-    canvas.style.transform = "translate(5px, 0)";
-setTimeout(() => {
-  canvas.style.transform = "translate(0, 0)";
-}, 50);
-    
-    enemySpeed += 0.05;
-spawnRate -= 20;
-    
-    x1
-x2
-x5
-x10
-MEGA COMBO
-
-    touch-action: none;
-user-select: none;
-
-    ctx.shadowBlur = 20;
-ctx.shadowColor = "cyan";
 
 startGame();
 </script>
