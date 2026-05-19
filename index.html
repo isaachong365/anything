@@ -11,6 +11,77 @@ user-scalable=no">
 
 <title>Glow Survival Complete</title>
 
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Touch Move Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #f0f2f5;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #box {
+            width: 80px;
+            height: 80px;
+            background-color: #007bff;
+            border-radius: 12px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            touch-action: none; 
+            cursor: grab;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="box"></div>
+
+    <script>
+        const box = document.getElementById('box');
+        let isDragging = false;
+        let startX, startY;
+        let initialX, initialY;
+
+        // Start tracking the touch position
+        box.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            
+            // Get the current position of the box
+            const style = window.getComputedStyle(box);
+            initialX = parseInt(style.left, 10);
+            initialY = parseInt(style.top, 10);
+
+            // Get the touch input coordinates
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        }, { passive: true });
+
+        // Move the element as the finger slides
+        window.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+
+            // Calculate change in position
+            const deltaX = e.touches[0].clientX - startX;
+            const deltaY = e.touches[0].clientY - startY;
+
+            // Apply new coordinates to the element
+            box.style.left = `${initialX + deltaX}px`;
+            box.style.top = `${initialY + deltaY}px`;
+        }, { passive: true });
+
+        // Stop tracking when finger is lifted
+        window.addEventListener('touchend', () => {
+            isDragging = false;
+        });
+    </script>
 <style>
 html, body {
     margin: 0;
