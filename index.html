@@ -1,6 +1,154 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+const keys = {
+    up: false,
+    down: false,
+    left: false,
+    right: false
+};
+
+document.addEventListener("keydown", e => {
+
+    if (e.key === "ArrowUp" || e.key === "w") {
+        keys.up = true;
+    }
+
+    if (e.key === "ArrowDown" || e.key === "s") {
+        keys.down = true;
+    }
+
+    if (e.key === "ArrowLeft" || e.key === "a") {
+        keys.left = true;
+    }
+
+    if (e.key === "ArrowRight" || e.key === "d") {
+        keys.right = true;
+    }
+});
+
+document.addEventListener("keyup", e => {
+
+    if (e.key === "ArrowUp" || e.key === "w") {
+        keys.up = false;
+    }
+
+    if (e.key === "ArrowDown" || e.key === "s") {
+        keys.down = false;
+    }
+
+    if (e.key === "ArrowLeft" || e.key === "a") {
+        keys.left = false;
+    }
+
+    if (e.key === "ArrowRight" || e.key === "d") {
+        keys.right = false;
+    }
+});
+
+class Player {
+
+    constructor() {
+
+        this.x = canvas.width / 2;
+        this.y = canvas.height / 2;
+
+        this.radius = 22;
+        this.speed = 6;
+    }
+
+    update(delta) {
+
+        const moveSpeed =
+        this.speed * delta * 0.06;
+
+        if (keys.up) {
+            this.y -= moveSpeed;
+        }
+
+        if (keys.down) {
+            this.y += moveSpeed;
+        }
+
+        if (keys.left) {
+            this.x -= moveSpeed;
+        }
+
+        if (keys.right) {
+            this.x += moveSpeed;
+        }
+
+        // Keep inside screen
+
+        if (this.x < this.radius) {
+            this.x = this.radius;
+        }
+
+        if (this.x > canvas.width - this.radius) {
+            this.x = canvas.width - this.radius;
+        }
+
+        if (this.y < this.radius) {
+            this.y = this.radius;
+        }
+
+        if (this.y > canvas.height - this.radius) {
+            this.y = canvas.height - this.radius;
+        }
+    }
+
+    draw() {
+
+        ctx.beginPath();
+
+        ctx.arc(
+            this.x,
+            this.y,
+            this.radius,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.fillStyle = "#00e5ff";
+
+        ctx.shadowBlur = 25;
+        ctx.shadowColor = "#00e5ff";
+
+        ctx.fill();
+    }
+}
+
+const player = new Player();
+
+let lastTime = 0;
+
+function animate(timestamp) {
+
+    requestAnimationFrame(animate);
+
+    const delta = timestamp - lastTime;
+    lastTime = timestamp;
+
+    ctx.clearRect(0, 0,
+    canvas.width, canvas.height);
+
+    player.update(delta);
+    player.draw();
+}
+
+animate();
+
+window.addEventListener("resize", () => {
+
+    canvas.width = innerWidth;
+    canvas.height = innerHeight;
+});
 <meta charset="UTF-8">
 <meta name="viewport"
 content="width=device-width, initial-scale=1.0, user-scalable=no">
