@@ -1,159 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-
-canvas.width = innerWidth;
-canvas.height = innerHeight;
-
-const keys = {
-    up: false,
-    down: false,
-    left: false,
-    right: false
-};
-
-document.addEventListener("keydown", e => {
-
-    if (e.key === "ArrowUp" || e.key === "w") {
-        keys.up = true;
-    }
-
-    if (e.key === "ArrowDown" || e.key === "s") {
-        keys.down = true;
-    }
-
-    if (e.key === "ArrowLeft" || e.key === "a") {
-        keys.left = true;
-    }
-
-    if (e.key === "ArrowRight" || e.key === "d") {
-        keys.right = true;
-    }
-});
-
-document.addEventListener("keyup", e => {
-
-    if (e.key === "ArrowUp" || e.key === "w") {
-        keys.up = false;
-    }
-
-    if (e.key === "ArrowDown" || e.key === "s") {
-        keys.down = false;
-    }
-
-    if (e.key === "ArrowLeft" || e.key === "a") {
-        keys.left = false;
-    }
-
-    if (e.key === "ArrowRight" || e.key === "d") {
-        keys.right = false;
-    }
-});
-
-class Player {
-
-    constructor() {
-
-        this.x = canvas.width / 2;
-        this.y = canvas.height / 2;
-
-        this.radius = 22;
-        this.speed = 6;
-    }
-
-    update(delta) {
-
-        const moveSpeed =
-        this.speed * delta * 0.06;
-
-        if (keys.up) {
-            this.y -= moveSpeed;
-        }
-
-        if (keys.down) {
-            this.y += moveSpeed;
-        }
-
-        if (keys.left) {
-            this.x -= moveSpeed;
-        }
-
-        if (keys.right) {
-            this.x += moveSpeed;
-        }
-
-        // Keep inside screen
-
-        if (this.x < this.radius) {
-            this.x = this.radius;
-        }
-
-        if (this.x > canvas.width - this.radius) {
-            this.x = canvas.width - this.radius;
-        }
-
-        if (this.y < this.radius) {
-            this.y = this.radius;
-        }
-
-        if (this.y > canvas.height - this.radius) {
-            this.y = canvas.height - this.radius;
-        }
-    }
-
-    draw() {
-
-        ctx.beginPath();
-
-        ctx.arc(
-            this.x,
-            this.y,
-            this.radius,
-            0,
-            Math.PI * 2
-        );
-
-        ctx.fillStyle = "#00e5ff";
-
-        ctx.shadowBlur = 25;
-        ctx.shadowColor = "#00e5ff";
-
-        ctx.fill();
-    }
-}
-
-const player = new Player();
-
-let lastTime = 0;
-
-function animate(timestamp) {
-
-    requestAnimationFrame(animate);
-
-    const delta = timestamp - lastTime;
-    lastTime = timestamp;
-
-    ctx.clearRect(0, 0,
-    canvas.width, canvas.height);
-
-    player.update(delta);
-    player.draw();
-}
-
-animate();
-
-window.addEventListener("resize", () => {
-
-    canvas.width = innerWidth;
-    canvas.height = innerHeight;
-});
 <meta charset="UTF-8">
-<meta name="viewport"
-content="width=device-width, initial-scale=1.0, user-scalable=no">
 
-<title>Glow Survival+</title>
+<meta name="viewport"
+content="width=device-width,
+initial-scale=1.0,
+user-scalable=no">
+
+<title>Glow Survival Complete</title>
 
 <style>
 html, body {
@@ -236,68 +92,190 @@ button:active {
 
 <div id="gameOver">
     <h1>GAME OVER</h1>
-    <div id="finalScore">Score: 0</div>
-    <button onclick="restartGame()">PLAY AGAIN</button>
+
+    <div id="finalScore">
+        Score: 0
+    </div>
+
+    <button onclick="restartGame()">
+        PLAY AGAIN
+    </button>
 </div>
 
 <canvas id="game"></canvas>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+// =========================
+// CANVAS
+// =========================
+
+const canvas =
+document.getElementById("game");
+
+const ctx =
+canvas.getContext("2d");
 
 canvas.width = innerWidth;
 canvas.height = innerHeight;
 
-const scoreText = document.getElementById("score");
-const comboText = document.getElementById("combo");
-const gameOverScreen = document.getElementById("gameOver");
-const finalScoreText = document.getElementById("finalScore");
+// =========================
+// UI
+// =========================
 
-let touchX = canvas.width / 2;
-let touchY = canvas.height / 2;
+const scoreText =
+document.getElementById("score");
+
+const comboText =
+document.getElementById("combo");
+
+const gameOverScreen =
+document.getElementById("gameOver");
+
+const finalScoreText =
+document.getElementById("finalScore");
+
+// =========================
+// KEYBOARD
+// =========================
+
+const keys = {
+    up: false,
+    down: false,
+    left: false,
+    right: false
+};
+
+document.addEventListener("keydown", e => {
+
+    if (e.key === "ArrowUp" || e.key === "w") {
+        keys.up = true;
+    }
+
+    if (e.key === "ArrowDown" || e.key === "s") {
+        keys.down = true;
+    }
+
+    if (e.key === "ArrowLeft" || e.key === "a") {
+        keys.left = true;
+    }
+
+    if (e.key === "ArrowRight" || e.key === "d") {
+        keys.right = true;
+    }
+});
+
+document.addEventListener("keyup", e => {
+
+    if (e.key === "ArrowUp" || e.key === "w") {
+        keys.up = false;
+    }
+
+    if (e.key === "ArrowDown" || e.key === "s") {
+        keys.down = false;
+    }
+
+    if (e.key === "ArrowLeft" || e.key === "a") {
+        keys.left = false;
+    }
+
+    if (e.key === "ArrowRight" || e.key === "d") {
+        keys.right = false;
+    }
+});
+
+// =========================
+// GAME VARIABLES
+// =========================
 
 let player;
+
 let enemies = [];
 let gems = [];
 let particles = [];
 
 let score = 0;
 let combo = 1;
+
 let running = false;
 
 let spawnTimeout;
 let lastTime = 0;
 
-document.addEventListener("mousemove", e => {
-    touchX = e.clientX;
-    touchY = e.clientY;
-});
-
-document.addEventListener("touchmove", e => {
-    e.preventDefault();
-
-    touchX = e.touches[0].clientX;
-    touchY = e.touches[0].clientY;
-}, { passive: false });
+// =========================
+// PLAYER
+// =========================
 
 class Player {
+
     constructor() {
+
         this.x = canvas.width / 2;
         this.y = canvas.height / 2;
+
         this.radius = 22;
+        this.speed = 6;
     }
 
-    update() {
-        this.x += (touchX - this.x) * 0.12;
-        this.y += (touchY - this.y) * 0.12;
+    update(delta) {
+
+        const moveSpeed =
+        this.speed * delta * 0.06;
+
+        if (keys.up) {
+            this.y -= moveSpeed;
+        }
+
+        if (keys.down) {
+            this.y += moveSpeed;
+        }
+
+        if (keys.left) {
+            this.x -= moveSpeed;
+        }
+
+        if (keys.right) {
+            this.x += moveSpeed;
+        }
+
+        // SCREEN LIMITS
+
+        if (this.x < this.radius) {
+            this.x = this.radius;
+        }
+
+        if (this.x >
+            canvas.width - this.radius) {
+
+            this.x =
+            canvas.width - this.radius;
+        }
+
+        if (this.y < this.radius) {
+            this.y = this.radius;
+        }
+
+        if (this.y >
+            canvas.height - this.radius) {
+
+            this.y =
+            canvas.height - this.radius;
+        }
     }
 
     draw() {
+
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+
+        ctx.arc(
+            this.x,
+            this.y,
+            this.radius,
+            0,
+            Math.PI * 2
+        );
 
         ctx.fillStyle = "#00e5ff";
+
         ctx.shadowBlur = 25;
         ctx.shadowColor = "#00e5ff";
 
@@ -305,54 +283,82 @@ class Player {
     }
 }
 
+// =========================
+// ENEMY
+// =========================
+
 class Enemy {
+
     constructor() {
 
-        this.radius = Math.random() * 20 + 16;
+        this.radius =
+        Math.random() * 20 + 16;
 
-        const side = Math.floor(Math.random() * 4);
+        const side =
+        Math.floor(Math.random() * 4);
 
         if (side === 0) {
             this.x = -50;
-            this.y = Math.random() * canvas.height;
+            this.y =
+            Math.random() * canvas.height;
         }
 
         if (side === 1) {
             this.x = canvas.width + 50;
-            this.y = Math.random() * canvas.height;
+            this.y =
+            Math.random() * canvas.height;
         }
 
         if (side === 2) {
-            this.x = Math.random() * canvas.width;
+            this.x =
+            Math.random() * canvas.width;
             this.y = -50;
         }
 
         if (side === 3) {
-            this.x = Math.random() * canvas.width;
+            this.x =
+            Math.random() * canvas.width;
             this.y = canvas.height + 50;
         }
 
-        this.speed = Math.random() * 2 + 1.5;
+        this.speed =
+        Math.random() * 2 + 1.5;
 
         this.color =
-        `hsl(${Math.random() * 360},100%,60%)`;
+        `hsl(${Math.random()*360},
+        100%,60%)`;
     }
 
-    update() {
+    update(delta) {
 
         const angle =
-        Math.atan2(player.y - this.y,
-                   player.x - this.x);
+        Math.atan2(
+            player.y - this.y,
+            player.x - this.x
+        );
 
-        this.x += Math.cos(angle) * this.speed;
-        this.y += Math.sin(angle) * this.speed;
+        this.x +=
+        Math.cos(angle)
+        * this.speed
+        * delta * 0.06;
+
+        this.y +=
+        Math.sin(angle)
+        * this.speed
+        * delta * 0.06;
     }
 
     draw() {
+
         ctx.beginPath();
 
-        ctx.arc(this.x, this.y,
-        this.radius, 0, Math.PI * 2);
+        ctx.arc(
+            this.x,
+            this.y,
+            this.radius,
+            0,
+            Math.PI * 2
+        );
 
         ctx.fillStyle = this.color;
 
@@ -363,24 +369,36 @@ class Enemy {
     }
 }
 
+// =========================
+// GEM
+// =========================
+
 class Gem {
+
     constructor() {
 
         this.radius = 12;
 
         this.x =
-        Math.random() * (canvas.width - 100) + 50;
+        Math.random()
+        * (canvas.width - 100) + 50;
 
         this.y =
-        Math.random() * (canvas.height - 100) + 50;
+        Math.random()
+        * (canvas.height - 100) + 50;
     }
 
     draw() {
 
         ctx.beginPath();
 
-        ctx.arc(this.x, this.y,
-        this.radius, 0, Math.PI * 2);
+        ctx.arc(
+            this.x,
+            this.y,
+            this.radius,
+            0,
+            Math.PI * 2
+        );
 
         ctx.fillStyle = "#ffe600";
 
@@ -391,16 +409,25 @@ class Gem {
     }
 }
 
+// =========================
+// PARTICLES
+// =========================
+
 class Particle {
+
     constructor(x, y, color) {
 
         this.x = x;
         this.y = y;
 
-        this.size = Math.random() * 5 + 2;
+        this.size =
+        Math.random() * 5 + 2;
 
-        this.speedX = (Math.random() - 0.5) * 8;
-        this.speedY = (Math.random() - 0.5) * 8;
+        this.speedX =
+        (Math.random() - 0.5) * 8;
+
+        this.speedY =
+        (Math.random() - 0.5) * 8;
 
         this.life = 40;
 
@@ -408,6 +435,7 @@ class Particle {
     }
 
     update() {
+
         this.x += this.speedX;
         this.y += this.speedY;
 
@@ -416,19 +444,30 @@ class Particle {
 
     draw() {
 
-        ctx.globalAlpha = this.life / 40;
+        ctx.globalAlpha =
+        this.life / 40;
 
         ctx.beginPath();
 
-        ctx.arc(this.x, this.y,
-        this.size, 0, Math.PI * 2);
+        ctx.arc(
+            this.x,
+            this.y,
+            this.size,
+            0,
+            Math.PI * 2
+        );
 
         ctx.fillStyle = this.color;
+
         ctx.fill();
 
         ctx.globalAlpha = 1;
     }
 }
+
+// =========================
+// EFFECTS
+// =========================
 
 function createExplosion(x, y, color) {
 
@@ -439,6 +478,10 @@ function createExplosion(x, y, color) {
         );
     }
 }
+
+// =========================
+// ENEMY SPAWNING
+// =========================
 
 function spawnEnemies() {
 
@@ -453,28 +496,48 @@ function spawnEnemies() {
     setTimeout(spawnEnemies, delay);
 }
 
+// =========================
+// COMBO
+// =========================
+
 function updateCombo() {
 
     if (score > 300) {
+
         combo = 10;
-        comboText.innerText = "MEGA COMBO x10";
+
+        comboText.innerText =
+        "MEGA COMBO x10";
     }
 
     else if (score > 200) {
+
         combo = 5;
-        comboText.innerText = "x5";
+
+        comboText.innerText =
+        "x5";
     }
 
     else if (score > 100) {
+
         combo = 2;
-        comboText.innerText = "x2";
+
+        comboText.innerText =
+        "x2";
     }
 
     else {
+
         combo = 1;
-        comboText.innerText = "x1";
+
+        comboText.innerText =
+        "x1";
     }
 }
+
+// =========================
+// GAME LOOP
+// =========================
 
 function animate(timestamp) {
 
@@ -482,25 +545,38 @@ function animate(timestamp) {
 
     requestAnimationFrame(animate);
 
-    const delta = timestamp - lastTime;
+    const delta =
+    timestamp - lastTime;
+
     lastTime = timestamp;
 
-    ctx.fillStyle = "rgba(9,11,20,0.25)";
-    ctx.fillRect(0, 0,
-    canvas.width, canvas.height);
+    ctx.fillStyle =
+    "rgba(9,11,20,0.25)";
 
-    player.update();
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    player.update(delta);
     player.draw();
+
+    // GEMS
 
     gems.forEach((gem, gemIndex) => {
 
         gem.draw();
 
         const dist =
-        Math.hypot(player.x - gem.x,
-                   player.y - gem.y);
+        Math.hypot(
+            player.x - gem.x,
+            player.y - gem.y
+        );
 
-        if (dist < player.radius + gem.radius) {
+        if (dist <
+            player.radius + gem.radius) {
 
             score += 10 * combo;
 
@@ -518,21 +594,28 @@ function animate(timestamp) {
         }
     });
 
-    enemies.forEach((enemy, enemyIndex) => {
+    // ENEMIES
 
-        enemy.update();
+    enemies.forEach(enemy => {
+
+        enemy.update(delta);
         enemy.draw();
 
         const dist =
-        Math.hypot(player.x - enemy.x,
-                   player.y - enemy.y);
+        Math.hypot(
+            player.x - enemy.x,
+            player.y - enemy.y
+        );
 
         if (dist <
-            player.radius + enemy.radius) {
+            player.radius +
+            enemy.radius) {
 
             endGame();
         }
     });
+
+    // PARTICLES
 
     particles.forEach((particle, index) => {
 
@@ -540,6 +623,7 @@ function animate(timestamp) {
         particle.draw();
 
         if (particle.life <= 0) {
+
             particles.splice(index, 1);
         }
     });
@@ -549,6 +633,10 @@ function animate(timestamp) {
     scoreText.innerText =
     "Score: " + Math.floor(score);
 }
+
+// =========================
+// START GAME
+// =========================
 
 function startGame() {
 
@@ -565,12 +653,17 @@ function startGame() {
 
     running = true;
 
-    gameOverScreen.style.display = "none";
+    gameOverScreen.style.display =
+    "none";
 
     spawnEnemies();
 
     requestAnimationFrame(animate);
 }
+
+// =========================
+// END GAME
+// =========================
 
 function endGame() {
 
@@ -581,19 +674,21 @@ function endGame() {
     finalScoreText.innerText =
     "Score: " + Math.floor(score);
 
-    gameOverScreen.style.display = "block";
-
-    canvas.style.transform = "translate(10px,0)";
-
-    setTimeout(() => {
-        canvas.style.transform =
-        "translate(0,0)";
-    }, 80);
+    gameOverScreen.style.display =
+    "block";
 }
+
+// =========================
+// RESTART
+// =========================
 
 function restartGame() {
     startGame();
 }
+
+// =========================
+// RESIZE
+// =========================
 
 window.addEventListener("resize", () => {
 
@@ -601,7 +696,12 @@ window.addEventListener("resize", () => {
     canvas.height = innerHeight;
 });
 
+// =========================
+// START
+// =========================
+
 startGame();
+
 </script>
 
 </body>
