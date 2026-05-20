@@ -87,7 +87,7 @@ window.onresize = resize; resize();
 
 const state = { running: true, score: 0, shards: 0, time: 0, shake: 0, bossActive: false };
 const keys = {};
-window.onkeydown = e => { keys[e.key.toLowerCase()] = true; audioCtx.resume(); };
+window.onkeydown = e => { keys[e.key.toLowerCase()] = true; if(audioCtx.state === 'suspended') audioCtx.resume(); };
 window.onkeyup = e => keys[e.key.toLowerCase()] = false;
 
 // --- CLASSES ---
@@ -170,329 +170,104 @@ class Bullet {
     }
 }
 
-class Shard { 
-    constructor(x,y,v=25) { this.x=x; this.y=y; this.v=v; } 
-    update() {
-        const d = Math.hypot(player.x-this.x, player.y-this.y);
-        if(d < 180) { this.x+=(player.x-this.x)*0.15; this.y+=(player.y-this.y)*0.15; }
-        return d < 20;
-    }
-}
-
 // --- GAME CONTROLLER ---
 const player = new Player();
-let bullets = [], enemies = [], shards = [];
-
-function spawn() {
-    if(!state.running || state.bossActive) return;
-    const a = Math.random()*Math.PI*2;
-    const x = player.x + Math.cos(a)*w, y = player.y + Math.sin(a)*h;
-    enemies.push(new Enemy(x, y, Math.random() < 0.25 ? 'sniper' : 'grunt'));
-    setTimeout(spawn, Math.max(200, 1100 - state.time/10));
-}
-
-function checkBoss() {
-    if(player.lvl % 3 === 0 && !state.bossActive) {
-        state.bossActive = true;
-        enemies = [new Enemy(player.x, player.y - 500, 'boss')];
-        document.getElementById('boss-ui').style.display = 'flex';
-        playSfx(50, 'sawtooth', 1, 0.2);
-    }
-}
-
-function showUpgrade() {
-    state.running = false;
-    document.getElementById('overlay').style.display = 'flex';
-    const choices = document.getElementById('choices'); choices.innerHTML = '';
-    const pool = [
-        { n: "RAPID PULSE", d: "-Fire Rate", f: () => player.fireRate *= 0.8 },
-        { n: "SPLIT BEAM", d: "+1 Projectile", f: () => player.bulletCount++ },
-        { n: "EMERGENCY REPAIR", d: "Heal 50% HP", f: () => player.hp = Math.min(player.maxHp, player.hp + player.maxHp/2) },
-        { n: "OVERCHARGE", d: "+Damage", f: () => player.bulletDmg += 20 }
-    ];
-    pool.sort(()=>Math.random()-0.5).slice(0,3).forEach(u => {
-        const c = document.createElement('div'); c.className = 'card';
-        c.innerHTML = `<h3>${u.n}</h3><p>${u.d}</p>`;
-        c.onclick = () => { u.f(); document.getElementById('overlay').style.display='none'; state.running=true; loop(); };
-        choices.appendChild(c);
-    });
-}
-
-function showShop() {
-    state.running = false;
-    document.getElementById('shop-overlay').style.display = 'flex';
-    document.getElementById('totalShards').innerText = meta.shards;
-    const sItems = document.getElementById('shop-items'); sItems.innerHTML = '';
-    const metaPool = [{id:'hp',n:'INTEGRITY'},{id:'dmg',n:'VOLTAGE'},{id:'speed',n:'THRUST'}];
-    metaPool.forEach(u => {
-        const cost = 25 * (meta.upgrades[u.id] + 1);
-        const c = document.createElement('div'); 
-        c.className = `card ${meta.shards < cost ? 'disabled' : ''}`;
-        c.innerHTML = `<h3>${u.n}</h3><p>Lvl: ${meta.upgrades[u.id]}</p><p>Cost: ${cost} Shards</p>`;
-        c.onclick = () => { if(meta.shards >= cost){ meta.shards-=cost; meta.upgrades[u.id]++; saveMeta(); showShop(); } };
-        sItems.appendChild(c);
-    });
-}
-
-function loop() {
-    if(!state.running) return;
-    state.time++; 
-    ctx.fillStyle = '#02040a'; ctx.fillRect(0,0,w,h);
-    let sx = (Math.random()-0.5)*state.shake, sy = (Math.random()-0.5)*state.shake; state.shake *= 0.9;
-    const toS = (x,y) => ({ x: x-player.x+cX+sx, y: y-player.y+cY+sy });
-
-    // Grid
-    ctx.strokeStyle = '#0a1020';
-    for(let x=-player.x%100; x<w; x+=100) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
-    for(let y=-player.y%100; y<h; y+=100) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
-
-    player.update();
-    const pS = toS(player.x, player.y);
-    ctx.shadowBlur = 15; ctx.shadowColor = '#00e5ff';
-    ctx.fillStyle = '#00e5ff'; ctx.beginPath(); ctx.arc(pS.x, pS.y, player.r, 0, Math.PI*2); ctx.fill();
-    ctx.shadowBlur = 0;
-
-    bullets = bullets.filter(b => {
-        b.update(); const bS = toS(b.x, b.y);
-        ctx.fillStyle = b.isP ? '#fff' : '#ffee00';
-        ctx.beginPath(); ctx.arc(bS.x, bS.y, 4, 0, Math.PI*2); ctx.fill();
-        if(b.isP) enemies.forEach(e => { if(Math.hypot(b.x-e.x, b.y-e.y) < e.r){ e.hp -= b.d; b.life=0; } });
-        return b.life > 0;
-    });
-
-    enemies.forEach((e, i) => {
-        e.update(); const eS = toS(e.x, e.y);
-        ctx.fillStyle = e.color; ctx.beginPath(); ctx.arc(eS.x, eS.y, e.r, 0, Math.PI*2); ctx.fill();
-        if(e.isBoss) document.getElementById('boss-hp-fill').style.width = (e.hp/e.maxHp*100)+'%';
-        if(e.hp <= 0) {
-            if(e.isBoss) { state.bossActive = false; document.getElementById('boss-ui').style.display = 'none'; spawn(); player.xp += 400; }
-            state.score += e.isBoss ? 1500 : 100; 
-            shards.push(new Shard(e.x, e.y, e.isBoss ? 150 : 30));
-            enemies.splice(i, 1); playSfx(100, 'sine', 0.1);
-        }
-    });
-
-    shards = shards.filter(s => {
-        const sS = toS(s.x, s.y); ctx.fillStyle = '#ccff00'; ctx.beginPath(); ctx.arc(sS.x, sS.y, 6, 0, Math.PI*2); ctx.fill();
-        if(s.update()){ 
-            state.shards++; player.xp += s.v; 
-            if(player.xp >= player.nextXP){ 
-                player.lvl++; player.xp=0; player.nextXP*=1.25; 
-                checkBoss(); showUpgrade(); 
-            }
-            return false;
-        } return true;
-    });
-
-    document.getElementById('hp-bar').style.width = (player.hp/player.maxHp*100)+'%';
-    document.getElementById('xp-bar').style.width = (player.xp/player.nextXP*100)+'%';
-    document.getElementById('scoreText').innerText = state.score;
-    document.getElementById('shardText').innerText = state.shards;
-    document.getElementById('lvlText').innerText = player.lvl;
-
-    if(player.hp <= 0) { meta.shards += state.shards; saveMeta(); showShop(); }
-    else requestAnimationFrame(loop);
-}
-
-spawn(); loop();
-    // --- INITIALIZE ---
-const player = new Player();
 const enemies = [];
 const bullets = [];
-const shards = [];
 
 function spawnEnemy() {
-    if (state.bossActive) return;
+    if(state.bossActive && enemies.some(e => e.isBoss)) return;
     const angle = Math.random() * Math.PI * 2;
-    const dist = 600;
+    const dist = 700;
     const x = player.x + Math.cos(angle) * dist;
     const y = player.y + Math.sin(angle) * dist;
-    const type = Math.random() > 0.8 ? 'sniper' : 'grunt';
-    enemies.push(new Enemy(x, y, type));
-}
 
-// --- MAIN LOOP ---
-function loop() {
-    if (!state.running) return;
-
-    // 1. Clear Screen
-    ctx.fillStyle = '#02040a';
-    ctx.fillRect(0, 0, w, h);
-
-    // 2. Camera Shake & Follow
-    ctx.save();
-    if (state.shake > 0) {
-        ctx.translate(Math.random() * state.shake, Math.random() * state.shake);
-        state.shake *= 0.9;
-    }
-    ctx.translate(w/2 - player.x, h/2 - player.y);
-
-    // 3. Update & Draw Player
-    player.update();
-    ctx.beginPath();
-    ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
-    ctx.fillStyle = '#00e5ff';
-    ctx.fill();
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = '#00e5ff';
-
-    // 4. Handle Bullets
-    for (let i = bullets.length - 1; i >= 0; i--) {
-        const b = bullets[i];
-        b.update();
-        ctx.fillStyle = b.isP ? '#00e5ff' : '#ff0055';
-        ctx.fillRect(b.x, b.y, 4, 4);
-        if (b.life <= 0) bullets.splice(i, 1);
-    }
-
-    // 5. Handle Enemies
-    for (let i = enemies.length - 1; i >= 0; i--) {
-        const e = enemies[i];
-        e.update();
-        
-        // Draw Enemy
-        ctx.fillStyle = e.c;
-        ctx.beginPath();
-        ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
-        ctx.fill();
-
-        // Bullet Collision
-        bullets.forEach(b => {
-            if (b.isP && Math.hypot(b.x - e.x, b.y - e.y) < e.r) {
-                e.hp -= b.d;
-                b.life = 0;
-            }
-        });
-
-        if (e.hp <= 0) {
-            state.score += e.isBoss ? 1000 : 10;
-            document.getElementById('scoreText').innerText = state.score;
-            enemies.splice(i, 1);
-        }
-    }
-
-    ctx.restore();
-
-    // 6. UI Updates
-    document.getElementById('hp-bar').style.width = (player.hp / player.maxHp * 100) + "%";
-    
-    state.time++;
-    if (state.time % 60 === 0) spawnEnemy();
-
-    requestAnimationFrame(loop);
-}
-
-// Start Game
-loop();
-</script>
-<script>
-// --- INITIALIZATION ---
-const player = new Player();
-const enemies = [];
-const bullets = [];
-const shards = [];
-
-// --- SPAWN LOGIC ---
-function spawnEnemy() {
-    if (state.bossActive && enemies.some(e => e.isBoss)) return;
-    
-    // Calculate a position outside the screen
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 700; 
-    const x = player.x + Math.cos(angle) * dist;
-    const y = player.y + Math.sin(angle) * dist;
-    
-    // Spawn Boss every 5000 points
-    if (state.score > 0 && state.score % 5000 === 0 && !state.bossActive) {
+    if (state.score > 0 && state.score % 2000 === 0 && !state.bossActive) {
         state.bossActive = true;
         enemies.push(new Enemy(x, y, 'boss'));
         document.getElementById('boss-ui').style.display = 'flex';
     } else {
-        const type = Math.random() > 0.8 ? 'sniper' : 'grunt';
-        enemies.push(new Enemy(x, y, type));
+        enemies.push(new Enemy(x, y, Math.random() > 0.8 ? 'sniper' : 'grunt'));
     }
 }
 
-// --- CORE RENDER ENGINE ---
 function loop() {
-    if (!state.running) return;
+    if(!state.running) return;
 
-    // 1. Clean Canvas
+    // Clear background
     ctx.fillStyle = '#02040a';
     ctx.fillRect(0, 0, w, h);
 
-    // 2. Camera Viewport (Follow Player)
+    // Camera
     ctx.save();
+    if(state.shake > 0) {
+        ctx.translate(Math.random()*state.shake, Math.random()*state.shake);
+        state.shake *= 0.9;
+    }
     ctx.translate(w/2 - player.x, h/2 - player.y);
 
-    // 3. Draw Background Grid (So you can see movement)
-    ctx.strokeStyle = "rgba(0, 229, 255, 0.05)";
+    // Grid (Visual Reference)
+    ctx.strokeStyle = "rgba(0, 229, 255, 0.1)";
     for(let i = -2000; i < 2000; i += 100) {
         ctx.beginPath(); ctx.moveTo(i, -2000); ctx.lineTo(i, 2000); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(-2000, i); ctx.lineTo(2000, i); ctx.stroke();
     }
 
-    // 4. Update & Draw Player
     player.update();
-    ctx.shadowBlur = 15; ctx.shadowColor = '#00e5ff';
+    // Draw Player
     ctx.fillStyle = '#00e5ff';
-    ctx.beginPath();
-    ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
-    ctx.fill();
+    ctx.shadowBlur = 15; ctx.shadowColor = '#00e5ff';
+    ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, Math.PI*2); ctx.fill();
 
-    // 5. Update & Draw Enemies
-    for (let i = enemies.length - 1; i >= 0; i--) {
+    // Enemies
+    for(let i = enemies.length-1; i >= 0; i--) {
         const e = enemies[i];
         e.update();
-        
         ctx.fillStyle = e.c;
         ctx.shadowColor = e.c;
-        ctx.beginPath();
-        ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, Math.PI*2); ctx.fill();
 
-        // Check Collision with Player Bullets
+        // Hit by player bullet
         bullets.forEach(b => {
-            if (b.isP && Math.hypot(b.x - e.x, b.y - e.y) < e.r) {
-                e.hp -= b.d;
-                b.life = 0;
-                if(e.isBoss) {
-                    document.getElementById('boss-hp-fill').style.width = (e.hp / e.maxHp * 100) + "%";
-                }
+            if(b.isP && Math.hypot(b.x-e.x, b.y-e.y) < e.r) {
+                e.hp -= b.d; b.life = 0;
+                if(e.isBoss) document.getElementById('boss-hp-fill').style.width = (e.hp/e.maxHp*100)+'%';
             }
         });
 
-        if (e.hp <= 0) {
-            if(e.isBoss) {
-                state.bossActive = false;
-                document.getElementById('boss-ui').style.display = 'none';
-            }
-            state.score += e.isBoss ? 1000 : 25;
+        if(e.hp <= 0) {
+            if(e.isBoss) { state.bossActive = false; document.getElementById('boss-ui').style.display = 'none'; }
+            state.score += e.isBoss ? 1000 : 50;
             document.getElementById('scoreText').innerText = state.score;
             enemies.splice(i, 1);
         }
     }
 
-    // 6. Update & Draw Bullets
-    for (let i = bullets.length - 1; i >= 0; i--) {
+    // Bullets
+    for(let i = bullets.length-1; i >= 0; i--) {
         const b = bullets[i];
         b.update();
         ctx.fillStyle = b.isP ? '#00e5ff' : '#ff0055';
-        ctx.fillRect(b.x - 2, b.y - 2, 4, 4);
-        if (b.life <= 0) bullets.splice(i, 1);
+        ctx.fillRect(b.x-2, b.y-2, 4, 4);
+        if(b.life <= 0) bullets.splice(i, 1);
     }
 
     ctx.restore();
 
-    // 7. Update UI & Timing
-    document.getElementById('hp-bar').style.width = (player.hp / player.maxHp * 100) + "%";
+    // UI
+    document.getElementById('hp-bar').style.width = (player.hp/player.maxHp*100) + '%';
+    if(player.hp <= 0) {
+        state.running = false;
+        alert("GAME OVER! Score: " + state.score);
+        location.reload();
+    }
+
     state.time++;
-    if (state.time % 100 === 0) spawnEnemy();
+    if(state.time % 60 === 0) spawnEnemy();
 
     requestAnimationFrame(loop);
 }
 
-// Start the game loop
 loop();
 </script>
 </body>
