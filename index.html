@@ -3,45 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEON SURVIVOR</title>
+    <title>NEON SURVIVOR: OVERDRIVE MERGE</title>
     <style>
-        :root {
-            --neon-blue: #00e5ff;
-            --neon-pink: #ff0055;
-            --neon-green: #ccff00;
-        }
+        :root { --neon-blue: #00e5ff; --neon-pink: #ff0055; --neon-green: #ccff00; }
         body { margin: 0; background: #02040a; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; user-select: none; }
         canvas { display: block; }
-        
         #ui { position: absolute; inset: 20px; pointer-events: none; z-index: 10; }
         .bar-container { width: 220px; height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; margin: 5px 0 15px 0; overflow: hidden; }
         #hp-bar { height: 100%; background: linear-gradient(90deg, #ff0055, #ff5e00); width: 100%; transition: width 0.3s; box-shadow: 0 0 10px var(--neon-pink); }
         #xp-bar { height: 100%; background: linear-gradient(90deg, #00e5ff, #00ffaa); width: 0%; transition: width 0.3s; box-shadow: 0 0 10px var(--neon-blue); }
-        
         #boss-ui { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: none; flex-direction: column; align-items: center; }
         .boss-bar-bg { width: 60vw; height: 12px; background: rgba(255,0,85,0.2); border: 1px solid #ff0055; border-radius: 6px; overflow: hidden; }
         #boss-hp-fill { height: 100%; background: #ff0055; box-shadow: 0 0 15px #ff0055; width: 100%; transition: width 0.1s; }
-        
         #overlay, #shop-overlay { position: absolute; inset: 0; background: rgba(2, 4, 10, 0.95); display: none; flex-direction: column; align-items: center; justify-content: center; pointer-events: all; z-index: 100; backdrop-filter: blur(10px); }
         .card-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; }
-        .card, .shop-item { background: #0a0f1e; border: 2px solid #00e5ff; padding: 20px; width: 200px; cursor: pointer; text-align: center; border-radius: 15px; transition: 0.3s; }
-        .card:hover:not(.disabled), .shop-item:hover:not(.disabled) { background: #00e5ff; color: #000; transform: translateY(-5px); box-shadow: 0 0 20px #00e5ff; }
-        .disabled { opacity: 0.3; cursor: not-allowed; }
-        button { padding: 15px 40px; background: #00e5ff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 18px; margin-top: 20px; color: #000;}
-
+        .card, .shop-item { background: #0a0f1e; border: 2px solid var(--neon-blue); padding: 20px; width: 180px; cursor: pointer; text-align: center; border-radius: 15px; transition: 0.3s; }
+        .card:hover:not(.disabled), .shop-item:hover:not(.disabled) { background: var(--neon-blue); color: #000; transform: translateY(-5px); box-shadow: 0 0 20px var(--neon-blue); }
+        button { padding: 15px 40px; background: var(--neon-blue); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 18px; margin-top: 20px; color: #000;}
         .glitch { animation: glitch-anim 0.2s infinite; text-shadow: 2px 0 var(--neon-pink), -2px 0 var(--neon-blue); }
-        @keyframes glitch-anim {
-            0% { transform: translate(0); }
-            20% { transform: translate(-3px, 2px); }
-            100% { transform: translate(0); }
-        }
+        @keyframes glitch-anim { 0% { transform: translate(0); } 20% { transform: translate(-3px, 2px); } 100% { transform: translate(0); } }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    <div id="scoreBox" style="font-size: 32px; font-weight: bold; color: #00e5ff;">SCORE: <span id="scoreText">0</span></div>
-    <div style="font-size: 14px; color: #ccff00;">TOTAL SHARDS: <span id="shardText">0</span></div>
+    <div id="scoreBox" style="font-size: 32px; font-weight: bold; color: var(--neon-blue);">SCORE: <span id="scoreText">0</span></div>
+    <div style="font-size: 14px; color: var(--neon-green);">WALLET: <span id="shardText">0</span> 💎</div>
     <div class="bar-container"><div id="hp-bar"></div></div>
     <div style="font-size: 12px; letter-spacing: 2px;">LVL <span id="lvlText">1</span></div>
     <div class="bar-container"><div id="xp-bar"></div></div>
@@ -55,8 +42,8 @@
 <div id="overlay"><h1>AUGMENT ACQUIRED</h1><div id="choices" class="card-container"></div></div>
 
 <div id="shop-overlay">
-    <h1 style="color:#ff0055">SYSTEM TERMINATED</h1>
-    <h2 style="color:#fff">WALLET: <span id="walletShards">0</span> 💎</h2>
+    <h1 style="color:var(--neon-pink)">SYSTEM TERMINATED</h1>
+    <h2 style="color:#fff">TOTAL SHARDS: <span id="walletShards">0</span> 💎</h2>
     <div id="shop-items" class="card-container"></div>
     <button onclick="location.reload()">RE-INITIALIZE RUN</button>
 </div>
@@ -81,11 +68,11 @@ function playSfx(freq, type, dur, vol=0.05) {
 
 // --- SETUP ---
 const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
-let w, h, player, enemies = [], bullets = [], particles = [], boss = null;
-const SAVE_KEY = "neon_survivor_ultra_merge";
+let w, h, player, enemies = [], bullets = [], particles = [], boss = null, camera = {x: 0, y: 0};
+const SAVE_KEY = "neon_survivor_v5_merged";
 let meta = JSON.parse(localStorage.getItem(SAVE_KEY)) || { shards: 0, upgrades: { hp: 0, dmg: 0, speed: 0, shotgun: 0, railgun: 0 } };
 
-const state = { running: true, score: 0, sessionShards: 0, time: 0, shake: 0 };
+const state = { running: true, score: 0, sessionShards: 0, time: 0, shake: 0, diffMult: 1 };
 const keys = {};
 window.onkeydown = e => { keys[e.code] = true; if(audioCtx.state === 'suspended') audioCtx.resume(); };
 window.onkeyup = e => keys[e.code] = false;
@@ -101,30 +88,33 @@ class Particle {
         this.vy = (Math.random() - 0.5) * 10;
         this.life = 1.0;
     }
-    update() { this.x += this.vx; this.y += this.vy; this.life -= 0.02; }
+    update() { this.x += this.vx; this.y += this.vy; this.life -= 0.03; }
     draw() {
-        ctx.globalAlpha = this.life;
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x, this.y, 3, 3);
+        ctx.globalAlpha = this.life; ctx.fillStyle = this.color;
+        ctx.fillRect(this.x - camera.x, this.y - camera.y, 3, 3);
         ctx.globalAlpha = 1;
     }
 }
 
 class Bullet {
-    constructor(x, y, angle, dmg, speed = 12) {
+    constructor(x, y, angle, dmg, speed = 14) {
         this.x = x; this.y = y; this.angle = angle; this.dmg = dmg; this.speed = speed;
+        this.active = true;
     }
-    update() { this.x += Math.cos(this.angle) * this.speed; this.y += Math.sin(this.angle) * this.speed; }
+    update() {
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+    }
     draw() {
         ctx.fillStyle = '#ccff00'; ctx.shadowBlur = 10; ctx.shadowColor = '#ccff00';
-        ctx.fillRect(this.x-2, this.y-2, 5, 5);
+        ctx.fillRect(this.x - camera.x - 2, this.y - camera.y - 2, 6, 6);
     }
 }
 
 class Player {
     constructor() {
-        this.x = w/2; this.y = h/2; this.r = 18; this.angle = 0;
-        this.speed = 4.5 + (meta.upgrades.speed * 0.6);
+        this.x = 0; this.y = 0; this.r = 18; this.angle = 0;
+        this.speed = 4.5 + (meta.upgrades.speed * 0.7);
         this.maxHp = 100 + (meta.upgrades.hp * 25);
         this.hp = this.maxHp;
         this.bulletDmg = 40 + (meta.upgrades.dmg * 15);
@@ -136,15 +126,17 @@ class Player {
         if(keys['KeyW']) my--; if(keys['KeyS']) my++;
         if(keys['KeyA']) mx--; if(keys['KeyD']) mx++;
         if (mx !== 0 || my !== 0) {
-            this.angle = Math.atan2(my, mx);
             const mag = Math.hypot(mx, my);
             this.x += (mx / mag) * this.speed;
             this.y += (my / mag) * this.speed;
+            this.angle = Math.atan2(my, mx);
         }
         if(Date.now() - this.lastShot > this.fireRate) this.shoot();
+        camera.x += (this.x - w/2 - camera.x) * 0.1;
+        camera.y += (this.y - h/2 - camera.y) * 0.1;
     }
     draw() {
-        ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+        ctx.save(); ctx.translate(this.x - camera.x, this.y - camera.y); ctx.rotate(this.angle);
         ctx.shadowBlur = 15; ctx.shadowColor = '#00e5ff'; ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.moveTo(this.r, 0); ctx.lineTo(-this.r, -this.r); ctx.lineTo(-this.r, this.r); ctx.closePath();
         ctx.stroke(); ctx.restore();
@@ -153,23 +145,18 @@ class Player {
         let target = enemies.reduce((p, c) => {
             let d = Math.hypot(c.x-this.x, c.y-this.y);
             return d < p.dist ? {o: c, dist: d} : p;
-        }, {o: null, dist: 800}).o;
+        }, {o: null, dist: 900}).o;
         if(!target) return;
         this.lastShot = Date.now();
         playSfx(600, 'sine', 0.1);
-        let angle = Math.atan2(target.y-this.y, target.x-this.x);
-        
-        // Base Shot
-        bullets.push(new Bullet(this.x, this.y, angle, this.bulletDmg));
-        
-        // Shotgun Unlock
+        let a = Math.atan2(target.y-this.y, target.x-this.x);
+        bullets.push(new Bullet(this.x, this.y, a, this.bulletDmg));
         if(meta.upgrades.shotgun > 0) {
-            bullets.push(new Bullet(this.x, this.y, angle-0.2, this.bulletDmg*0.5));
-            bullets.push(new Bullet(this.x, this.y, angle+0.2, this.bulletDmg*0.5));
+            bullets.push(new Bullet(this.x, this.y, a-0.2, this.bulletDmg*0.5));
+            bullets.push(new Bullet(this.x, this.y, a+0.2, this.bulletDmg*0.5));
         }
-        // Railgun Unlock
-        if(meta.upgrades.railgun > 0 && state.time % 5 === 0) {
-            bullets.push(new Bullet(this.x, this.y, angle, this.bulletDmg*2, 25));
+        if(meta.upgrades.railgun > 0 && state.time % 500 === 0) {
+            bullets.push(new Bullet(this.x, this.y, a, this.bulletDmg*3, 25));
         }
     }
 }
@@ -177,26 +164,29 @@ class Player {
 class Enemy {
     constructor(isBoss = false) {
         this.isBoss = isBoss;
-        let edge = Math.floor(Math.random()*4);
-        if(edge==0){this.x=Math.random()*w; this.y=-100}
-        if(edge==1){this.x=Math.random()*w; this.y=h+100}
-        if(edge==2){this.x=-100; this.y=Math.random()*h}
-        if(edge==3){this.x=w+100; this.y=Math.random()*h}
-        this.r = isBoss ? 65 : 18; this.hp = isBoss ? 3000 : 70;
-        this.maxHp = this.hp; this.speed = isBoss ? 1.2 : 2.5;
+        const ang = Math.random() * Math.PI * 2;
+        const dist = w > h ? w : h;
+        this.x = player.x + Math.cos(ang) * dist;
+        this.y = player.y + Math.sin(ang) * dist;
+        this.r = isBoss ? 65 : 18; 
+        this.hp = (isBoss ? 3000 : 70) * state.diffMult; 
+        this.maxHp = this.hp;
+        this.speed = (isBoss ? 1.2 : 2.5) * (1 + state.diffMult * 0.05);
+        this.flash = 0;
     }
     update() {
         let a = Math.atan2(player.y-this.y, player.x-this.x);
         this.x += Math.cos(a)*this.speed; this.y += Math.sin(a)*this.speed;
+        if(this.flash > 0) this.flash--;
         if(Math.hypot(player.x-this.x, player.y-this.y) < this.r + player.r) {
-            player.hp -= 0.6; state.shake = 10;
+            player.hp -= 0.7; state.shake = 10;
             if(Math.random() > 0.9) triggerGlitch();
-            if(state.time % 20 === 0) playSfx(100, 'sawtooth', 0.1);
         }
     }
     draw() {
-        ctx.shadowBlur = 15; ctx.shadowColor = '#ff0055'; ctx.fillStyle = '#ff0055';
-        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 10; ctx.shadowColor = this.flash > 0 ? '#fff' : '#ff0055';
+        ctx.fillStyle = this.flash > 0 ? '#fff' : '#ff0055';
+        ctx.beginPath(); ctx.arc(this.x - camera.x, this.y - camera.y, this.r, 0, Math.PI*2); ctx.fill();
     }
 }
 
@@ -213,96 +203,81 @@ function applyChromaticAberration() {
 }
 
 function gameOver() {
-    state.running = false;
-    meta.shards += state.sessionShards;
+    state.running = false; meta.shards += state.sessionShards;
     localStorage.setItem(SAVE_KEY, JSON.stringify(meta));
     document.getElementById('shop-overlay').style.display = 'flex';
     document.getElementById('walletShards').innerText = meta.shards;
-    
-    const shop = document.getElementById('shop-items');
-    shop.innerHTML = ['hp', 'dmg', 'speed', 'shotgun', 'railgun'].map(k => {
-        let isWep = k === 'shotgun' || k === 'railgun';
-        let cost = isWep ? 500 : (meta.upgrades[k]+1)*100;
+    const items = ['hp', 'dmg', 'speed', 'shotgun', 'railgun'].map(k => {
+        let isWep = k.includes('gun');
+        let cost = isWep ? 500 : (meta.upgrades[k] + 1) * 150;
         let owned = isWep && meta.upgrades[k] > 0;
-        return `
-            <div class="shop-item ${meta.shards >= cost || owned ? '' : 'disabled'}" onclick="buy('${k}', ${cost})">
-                <h3>${k.toUpperCase()}</h3>
-                <p>${owned ? 'ACTIVE' : 'LVL: ' + meta.upgrades[k]}</p>
-                <p style="color:#ccff00">${owned ? 'OWNED' : '💎 ' + cost}</p>
-            </div>`;
+        return `<div class="shop-item ${meta.shards < cost && !owned ? 'disabled' : ''}" onclick="buy('${k}', ${cost})">
+            <h3>${k.toUpperCase()}</h3><p>${owned ? 'ACTIVE' : 'LVL ' + meta.upgrades[k]}</p><p>💎 ${cost}</p></div>`;
     }).join('');
+    document.getElementById('shop-items').innerHTML = items;
 }
 
-function buy(k, cost) {
-    if(meta.shards >= cost && (k.indexOf('gun') === -1 || meta.upgrades[k] === 0)) {
-        meta.shards -= cost; meta.upgrades[k]++;
-        localStorage.setItem(SAVE_KEY, JSON.stringify(meta));
-        gameOver();
+function buy(k, c) {
+    if(meta.shards >= c && (k.indexOf('gun') === -1 || meta.upgrades[k] === 0)) { 
+        meta.shards -= c; meta.upgrades[k]++; 
+        localStorage.setItem(SAVE_KEY, JSON.stringify(meta)); gameOver(); 
     }
 }
 
-function augment(type) {
-    if(type==='rate') player.fireRate *= 0.8;
-    if(type==='dmg') player.bulletDmg += 25;
-    state.running = true;
-    document.getElementById('overlay').style.display = 'none';
-    requestAnimationFrame(loop);
+function augment(t) {
+    if(t==='rate') player.fireRate *= 0.8; else player.bulletDmg += 30;
+    state.running = true; document.getElementById('overlay').style.display = 'none'; loop();
 }
 
 player = new Player();
 
 function loop() {
     if(!state.running) return;
-    state.time++;
+    state.time++; state.diffMult = 1 + (state.time / 4000);
     ctx.fillStyle = 'rgba(2, 4, 10, 0.2)'; ctx.fillRect(0, 0, w, h);
 
-    if(state.shake > 0) {
-        ctx.save(); ctx.translate(Math.random()*state.shake, Math.random()*state.shake);
-        state.shake *= 0.9;
-    }
+    if(state.shake > 0) { ctx.translate(Math.random()*state.shake, Math.random()*state.shake); state.shake *= 0.9; }
 
-    if(state.time % 60 === 0) enemies.push(new Enemy());
-    if(state.time === 2000) { boss = new Enemy(true); enemies.push(boss); document.getElementById('boss-ui').style.display = 'flex'; }
+    if(state.time % Math.max(15, 70 - Math.floor(state.time/600)) === 0) enemies.push(new Enemy());
+    if(state.time === 2500) { boss = new Enemy(true); enemies.push(boss); document.getElementById('boss-ui').style.display = 'flex'; }
 
     player.update(); player.draw();
 
-    bullets.forEach((b, i) => {
+    bullets = bullets.filter(b => {
         b.update(); b.draw();
-        if(b.x < 0 || b.x > w || b.y < 0 || b.y > h) bullets.splice(i, 1);
-        enemies.forEach((e, ei) => {
+        enemies.forEach(e => {
             if(Math.hypot(b.x-e.x, b.y-e.y) < e.r) {
-                e.hp -= b.dmg; bullets.splice(i, 1);
+                e.hp -= b.dmg; e.flash = 3; b.active = false;
                 if(e.hp <= 0) {
-                    for(let j=0; j<10; j++) particles.push(new Particle(e.x, e.y, '#ff0055'));
+                    for(let i=0; i<10; i++) particles.push(new Particle(e.x, e.y, '#ff0055'));
                     if(e.isBoss) { boss = null; document.getElementById('boss-ui').style.display = 'none'; state.score += 1000; }
-                    enemies.splice(ei, 1); state.score += 10; state.sessionShards++; player.xp += 25;
+                    enemies.splice(enemies.indexOf(e), 1);
+                    state.score += 10; state.sessionShards++; player.xp += 25;
                 }
             }
         });
+        return b.active && Math.hypot(b.x-player.x, b.y-player.y) < 2000;
     });
 
     enemies.forEach(e => { e.update(); e.draw(); });
-    particles.forEach((p, i) => { p.update(); p.draw(); if(p.life <= 0) particles.splice(i, 1); });
+    particles = particles.filter(p => { p.update(); p.draw(); return p.life > 0; });
 
-    if(state.shake > 0) ctx.restore();
-
-    // UI Updates
     document.getElementById('hp-bar').style.width = (player.hp/player.maxHp*100)+'%';
     document.getElementById('xp-bar').style.width = (player.xp/player.nextXP*100)+'%';
     document.getElementById('scoreText').innerText = state.score;
     document.getElementById('shardText').innerText = meta.shards + state.sessionShards;
     document.getElementById('lvlText').innerText = player.lvl;
-    if(boss) document.getElementById('boss-hp-fill').style.width = (boss.hp/3000*100)+'%';
+    if(boss) document.getElementById('boss-hp-fill').style.width = (boss.hp/boss.maxHp*100)+'%';
 
     if(player.xp >= player.nextXP) {
-        player.lvl++; player.xp = 0; player.nextXP *= 1.3;
-        state.running = false;
-        document.getElementById('overlay').style.display = 'flex';
-        document.getElementById('choices').innerHTML = `<div class="card" onclick="augment('rate')"><h3>RAPID CORES</h3><p>Rate +20%</p></div><div class="card" onclick="augment('dmg')"><h3>HIGH TENSION</h3><p>Dmg +25</p></div>`;
+        player.lvl++; player.xp = 0; player.nextXP *= 1.4;
+        state.running = false; document.getElementById('overlay').style.display = 'flex';
+        document.getElementById('choices').innerHTML = `<div class="card" onclick="augment('rate')"><h3>RAPID FIRE</h3></div><div class="card" onclick="augment('dmg')"><h3>POWER CORE</h3></div>`;
     }
     if(player.hp <= 0) gameOver();
-
+    
     applyChromaticAberration();
+    ctx.setTransform(1,0,0,1,0,0);
     requestAnimationFrame(loop);
 }
 loop();
