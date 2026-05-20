@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Glow Survival (Clean)</title>
+<title>Glow Survival (Improved)</title>
 
 <style>
 html,body{
@@ -73,9 +73,7 @@ canvas{
 </div>
 
 <script>
-// =====================
-// CANVAS
-// =====================
+// ===================== CANVAS =====================
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
@@ -86,16 +84,19 @@ function resize(){
 resize();
 addEventListener("resize", resize);
 
-// =====================
-// INPUT
-// =====================
+// ===================== INPUT =====================
 const keys = {};
 addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
 addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
-// =====================
-// GAME STATE
-// =====================
+// ===================== HELPERS =====================
+function dist2(ax, ay, bx, by){
+    const dx = ax - bx;
+    const dy = ay - by;
+    return dx*dx + dy*dy;
+}
+
+// ===================== GAME STATE =====================
 let bullets = [];
 let enemies = [];
 let gems = [];
@@ -103,10 +104,9 @@ let gems = [];
 let score = 0;
 let wave = 1;
 let running = true;
+let spawnTimer = null;
 
-// =====================
-// PLAYER
-// =====================
+// ===================== PLAYER =====================
 class Player{
     constructor(){
         this.x = canvas.width/2;
@@ -148,10 +148,20 @@ class Player{
     }
 
     shoot(){
-        const e = enemies[0];
-        if(!e) return;
+        let closest = null;
+        let best = Infinity;
 
-        const a = Math.atan2(e.y-this.y, e.x-this.x);
+        for(const e of enemies){
+            const d = dist2(this.x,this.y,e.x,e.y);
+            if(d < best){
+                best = d;
+                closest = e;
+            }
+        }
+
+        if(!closest) return;
+
+        const a = Math.atan2(closest.y-this.y, closest.x-this.x);
         bullets.push(new Bullet(this.x,this.y,a,this.damage));
     }
 
@@ -174,9 +184,7 @@ class Player{
     }
 }
 
-// =====================
-// BULLET
-// =====================
+// ===================== BULLET =====================
 class Bullet{
     constructor(x,y,a,d){
         this.x=x;
@@ -200,9 +208,7 @@ class Bullet{
     }
 }
 
-// =====================
-// ENEMY
-// =====================
+// ===================== ENEMY =====================
 class Enemy{
     constructor(){
         const side = Math.floor(Math.random()*4);
@@ -215,25 +221,27 @@ class Enemy{
         this.r = 18;
         this.hp = 40 + wave*5;
         this.speed = 1.5 + wave*0.05;
+
+        this.flash = 0;
     }
 
     update(){
         const a = Math.atan2(player.y-this.y, player.x-this.x);
         this.x += Math.cos(a)*this.speed;
         this.y += Math.sin(a)*this.speed;
+
+        if(this.flash > 0) this.flash--;
     }
 
     draw(){
         ctx.beginPath();
         ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
-        ctx.fillStyle="red";
+        ctx.fillStyle = this.flash > 0 ? "white" : "red";
         ctx.fill();
     }
 }
 
-// =====================
-// GEM
-// =====================
+// ===================== GEM =====================
 class Gem{
     constructor(x,y){
         this.x=x;
@@ -248,7 +256,7 @@ class Gem{
         this.x += dx*0.02;
         this.y += dy*0.02;
 
-        if(Math.hypot(dx,dy)<20){
+        if(dist2(this.x,this.y,player.x,player.y)<400){
             player.gainXP(20);
             score += 10;
             return true;
@@ -264,40 +272,47 @@ class Gem{
     }
 }
 
-// =====================
-// SYSTEMS
-// =====================
-function spawnEnemy(){
+// ===================== PLAYER INSTANCE =====================
+const player = new Player();
+
+// ===================== SPAWN =====================
+function spawnEnemyLoop(){
     if(!running) return;
+
     enemies.push(new Enemy());
-    setTimeout(spawnEnemy, Math.max(300, 1200-wave*20));
+
+    const delay = Math.max(300, 1200 - wave * 20);
+    spawnTimer = setTimeout(spawnEnemyLoop, delay);
 }
 
+// ===================== UPGRADES =====================
 function openUpgrade(){
-    running=false;
+    running = false;
+    clearTimeout(spawnTimer);
 
     const menu = document.getElementById("upgradeMenu");
-    menu.innerHTML="";
-    menu.style.display="flex";
+    menu.innerHTML = "";
+    menu.style.display = "flex";
 
     const upgrades = [
-        ()=>player.damage+=5,
-        ()=>player.speed+=0.5,
-        ()=>player.hp+=20,
-        ()=>player.fireRate=Math.max(80,player.fireRate-30)
+        ["+Damage", () => player.damage += 5],
+        ["+Speed", () => player.speed += 0.5],
+        ["+HP", () => player.hp += 20],
+        ["Faster Fire", () => player.fireRate = Math.max(80, player.fireRate - 30)]
     ];
 
     for(let i=0;i<3;i++){
-        const u = upgrades[Math.floor(Math.random()*upgrades.length)];
+        const pick = upgrades[Math.floor(Math.random()*upgrades.length)];
 
         const c = document.createElement("div");
-        c.className="card";
-        c.innerText="Upgrade";
+        c.className = "card";
+        c.innerText = pick[0];
 
-        c.onclick = ()=>{
-            u();
-            menu.style.display="none";
-            running=true;
+        c.onclick = () => {
+            pick[1]();
+            menu.style.display = "none";
+            running = true;
+            spawnEnemyLoop();
             loop();
         };
 
@@ -305,15 +320,7 @@ function openUpgrade(){
     }
 }
 
-// =====================
-// INIT
-// =====================
-const player = new Player();
-spawnEnemy();
-
-// =====================
-// LOOP
-// =====================
+// ===================== LOOP =====================
 function loop(){
     if(!running) return;
 
@@ -325,7 +332,7 @@ function loop(){
 
     // bullets
     for(let i=bullets.length-1;i>=0;i--){
-        let b=bullets[i];
+        const b = bullets[i];
         b.update();
         b.draw();
 
@@ -335,10 +342,11 @@ function loop(){
         }
 
         for(let j=enemies.length-1;j>=0;j--){
-            let e=enemies[j];
+            const e = enemies[j];
 
-            if(Math.hypot(b.x-e.x,b.y-e.y)<e.r){
+            if(dist2(b.x,b.y,e.x,e.y) < e.r*e.r){
                 e.hp -= b.d;
+                e.flash = 10;
                 bullets.splice(i,1);
 
                 if(e.hp<=0){
@@ -356,7 +364,7 @@ function loop(){
         e.update();
         e.draw();
 
-        if(Math.hypot(player.x-e.x,player.y-e.y)<e.r+player.r){
+        if(dist2(player.x,player.y,e.x,e.y) < (e.r+player.r)**2){
             player.hp -= 0.5;
         }
     }
@@ -367,7 +375,6 @@ function loop(){
         else gems[i].draw();
     }
 
-    // wave system
     wave = 1 + Math.floor(score/300);
 
     // UI
@@ -383,6 +390,8 @@ function loop(){
     }
 }
 
+// START GAME
+spawnEnemyLoop();
 loop();
 </script>
 
