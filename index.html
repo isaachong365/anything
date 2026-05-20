@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEON SURVIVOR: ARROW EDITION</title>
+    <title>NEON SURVIVOR: DEBUGGED</title>
     <style>
         body { margin: 0; background: #02040a; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; user-select: none; }
         canvas { display: block; }
@@ -11,18 +11,13 @@
         .bar-container { width: 220px; height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; margin: 5px 0 15px 0; overflow: hidden; }
         #hp-bar { height: 100%; background: linear-gradient(90deg, #ff0055, #ff5e00); width: 100%; transition: width 0.3s; }
         #xp-bar { height: 100%; background: linear-gradient(90deg, #00e5ff, #00ffaa); width: 0%; transition: width 0.3s; }
-        
         #boss-ui { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: none; flex-direction: column; align-items: center; }
         .boss-bar-bg { width: 60vw; height: 12px; background: rgba(255,0,85,0.2); border: 1px solid #ff0055; border-radius: 6px; overflow: hidden; }
         #boss-hp-fill { height: 100%; background: #ff0055; box-shadow: 0 0 15px #ff0055; width: 100%; transition: width 0.1s; }
-
         #overlay, #shop-overlay { position: absolute; inset: 0; background: rgba(2, 4, 10, 0.95); display: none; flex-direction: column; align-items: center; justify-content: center; pointer-events: all; z-index: 100; }
         .card { background: #0a0f1e; border: 2px solid #00e5ff; padding: 20px; margin: 10px; width: 240px; cursor: pointer; text-align: center; border-radius: 15px; transition: 0.3s; }
         .card:hover:not(.disabled) { background: #00e5ff; color: #000; transform: translateY(-5px); box-shadow: 0 0 20px #00e5ff; }
-        .disabled { opacity: 0.5; cursor: not-allowed; border-color: #444; }
-        
         button { padding: 15px 40px; background: #00e5ff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 18px; margin-top: 20px;}
-        h1 { margin: 0 0 10px 0; text-shadow: 0 0 20px rgba(0,229,255,0.5); }
     </style>
 </head>
 <body>
@@ -33,7 +28,6 @@
     <div class="bar-container"><div id="hp-bar"></div></div>
     <div style="font-size: 12px;">LEVEL <span id="lvlText">1</span></div>
     <div class="bar-container"><div id="xp-bar"></div></div>
-    <div style="font-size: 10px; color: #aaa;">USE ARROW KEYS TO MOVE</div>
 </div>
 
 <div id="boss-ui">
@@ -41,41 +35,32 @@
     <div class="boss-bar-bg"><div id="boss-hp-fill"></div></div>
 </div>
 
-<div id="overlay">
-    <h1 style="color:#00e5ff">AUGMENT SYSTEM</h1>
-    <div id="choices" style="display: flex; flex-wrap: wrap; justify-content: center;"></div>
-</div>
-
+<div id="overlay"><h1>AUGMENT SYSTEM</h1><div id="choices"></div></div>
 <div id="shop-overlay">
-    <h1 style="color:#ccff00">RUN ENDED</h1>
-    <h2 style="color:#fff">TOTAL SHARDS: <span id="totalShards">0</span></h2>
-    <div id="shop-items" style="display: flex; flex-wrap: wrap; justify-content: center;"></div>
-    <button onclick="location.reload()">INITIATE NEW RUN</button>
+    <h1>RUN ENDED</h1>
+    <h2>TOTAL SHARDS: <span id="totalShards">0</span></h2>
+    <div id="shop-items" style="display:flex;"></div>
+    <button onclick="location.reload()">REDEPLOY</button>
 </div>
 
 <canvas id="game"></canvas>
 
 <script>
-// --- PERSISTENCE ---
-const SAVE_KEY = "neon_survivor_v1";
-let meta = JSON.parse(localStorage.getItem(SAVE_KEY)) || { shards: 0, upgrades: { hp: 0, dmg: 0, speed: 0 } };
-function saveMeta() { localStorage.setItem(SAVE_KEY, JSON.stringify(meta)); }
-
-// --- SETUP ---
 const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
 let w, h;
-function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
+const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
 window.onresize = resize; resize();
 
+const SAVE_KEY = "neon_v2";
+let meta = JSON.parse(localStorage.getItem(SAVE_KEY)) || { shards: 0, upgrades: { hp: 0, dmg: 0, speed: 0 } };
 const state = { running: true, score: 0, shards: 0, time: 0, shake: 0, bossActive: false };
 const keys = {};
-window.onkeydown = e => keys[e.code] = true; // Use e.code for better accuracy with Arrow keys
+window.onkeydown = e => keys[e.code] = true;
 window.onkeyup = e => keys[e.code] = false;
 
-// --- CLASSES ---
 class Player {
     constructor() {
-        this.x = 0; this.y = 0; this.r = 15;
+        this.x = 0; this.y = 0; this.r = 18; this.angle = 0;
         this.speed = 4.5 + (meta.upgrades.speed * 0.5);
         this.maxHp = 100 + (meta.upgrades.hp * 25);
         this.hp = this.maxHp;
@@ -85,224 +70,126 @@ class Player {
     }
     update() {
         let mx = 0, my = 0;
-        
-        // Arrow Key Mapping
         if(keys['ArrowUp'] || keys['KeyW']) my--;
         if(keys['ArrowDown'] || keys['KeyS']) my++;
         if(keys['ArrowLeft'] || keys['KeyA']) mx--;
         if(keys['ArrowRight'] || keys['KeyD']) mx++;
-        
         if (mx !== 0 || my !== 0) {
+            this.angle = Math.atan2(my, mx);
             const mag = Math.hypot(mx, my);
             this.x += (mx / mag) * this.speed;
             this.y += (my / mag) * this.speed;
         }
-
         if(Date.now() - this.lastShot > this.fireRate) this.shoot();
-        
-        document.getElementById('hp-bar').style.width = (this.hp / this.maxHp * 100) + "%";
-        document.getElementById('xp-bar').style.width = (this.xp / this.nextXP * 100) + "%";
+        document.getElementById('hp-bar').style.width = (this.hp/this.maxHp*100)+'%';
+        document.getElementById('xp-bar').style.width = (this.xp/this.nextXP*100)+'%';
         if(this.xp >= this.nextXP) this.levelUp();
     }
+    draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.shadowBlur = 15; ctx.shadowColor = '#00e5ff';
+        ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 3;
+        ctx.beginPath(); // Draw triangle character
+        ctx.moveTo(this.r, 0); ctx.lineTo(-this.r, -this.r); ctx.lineTo(-this.r, this.r); ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+    }
     shoot() {
-        let nearest = null, minDist = 600;
+        let target = null, dMin = 600;
         enemies.forEach(e => {
-            const d = Math.hypot(e.x - this.x, e.y - this.y);
-            if(d < minDist) { minDist = d; nearest = e; }
+            let d = Math.hypot(e.x-this.x, e.y-this.y);
+            if(d < dMin) { dMin = d; target = e; }
         });
-        if(!nearest) return;
+        if(!target) return;
         this.lastShot = Date.now();
-        const a = Math.atan2(nearest.y - this.y, nearest.x - this.x);
-        bullets.push(new Bullet(this.x, this.y, a, this.bulletDmg, true));
+        bullets.push(new Bullet(this.x, this.y, Math.atan2(target.y-this.y, target.x-this.x), this.bulletDmg));
     }
     levelUp() {
-        this.lvl++;
-        this.xp = 0;
-        this.nextXP *= 1.3;
+        this.lvl++; this.xp = 0; this.nextXP *= 1.3;
         document.getElementById('lvlText').innerText = this.lvl;
-        showUpgradeMenu();
+        state.running = false;
+        document.getElementById('overlay').style.display = 'flex';
+        document.getElementById('choices').innerHTML = '<div class="card" onclick="upgrade(\'dmg\')"><h3>WEAPON OVERCLOCK</h3><p>+20 Damage</p></div><div class="card" onclick="upgrade(\'rate\')"><h3>FIRE RATE</h3><p>-15% Cooldown</p></div>';
     }
 }
 
+function upgrade(type) {
+    if(type==='dmg') player.bulletDmg += 20;
+    if(type==='rate') player.fireRate *= 0.85;
+    state.running = true;
+    document.getElementById('overlay').style.display = 'none';
+}
+
 class Enemy {
-    constructor(x, y, type) {
-        this.x = x; this.y = y; this.type = type;
-        const cfg = {
-            grunt: { r:18, hp:60, s:2.5, c:'#ff0055', isBoss: false },
-            boss: { r:60, hp:1500, s:1.2, c:'#ff0055', isBoss: true }
-        };
-        Object.assign(this, cfg[type]);
-        this.maxHp = this.hp;
+    constructor(x, y, isBoss) {
+        this.x = x; this.y = y; this.isBoss = isBoss;
+        this.r = isBoss ? 60 : 18; this.hp = isBoss ? 2000 : 60;
+        this.maxHp = this.hp; this.speed = isBoss ? 1 : 2.5;
     }
     update() {
-        const a = Math.atan2(player.y - this.y, player.x - this.x);
-        this.x += Math.cos(a) * this.speed;
-        this.y += Math.sin(a) * this.speed;
-        
-        if(this.isBoss) {
-            document.getElementById('boss-hp-fill').style.width = (this.hp / this.maxHp * 100) + "%";
+        let a = Math.atan2(player.y-this.y, player.x-this.x);
+        this.x += Math.cos(a)*this.speed; this.y += Math.sin(a)*this.speed;
+        if(Math.hypot(player.x-this.x, player.y-this.y) < this.r+player.r) {
+            player.hp -= 0.5; state.shake = 5;
         }
-
-        if(Math.hypot(player.x - this.x, player.y - this.y) < this.r + player.r) {
-            player.hp -= 0.5;
-            state.shake = 5;
-        }
+    }
+    draw() {
+        ctx.shadowBlur = 10; ctx.shadowColor = '#ff0055';
+        ctx.fillStyle = '#ff0055';
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
+        if(this.isBoss) document.getElementById('boss-hp-fill').style.width = (this.hp/this.maxHp*100)+'%';
     }
 }
 
 class Bullet {
-    constructor(x, y, a, d, isP) {
-        this.x = x; this.y = y; this.a = a; this.d = d; this.isP = isP;
-        this.s = 14; this.life = 80;
-    }
-    update() {
-        this.x += Math.cos(this.a) * this.s;
-        this.y += Math.sin(this.a) * this.s;
-        this.life--;
-    }
+    constructor(x,y,a,d) { this.x=x; this.y=y; this.a=a; this.d=d; this.s=12; this.life=100; }
+    update() { this.x += Math.cos(this.a)*this.s; this.y += Math.sin(this.a)*this.s; this.life--; }
+    draw() { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI*2); ctx.fill(); }
 }
 
-// --- GAME LOGIC ---
-const player = new Player();
-const enemies = [];
-const bullets = [];
-
-function showUpgradeMenu() {
-    state.running = false;
-    const choices = document.getElementById('choices');
-    document.getElementById('overlay').style.display = 'flex';
-    choices.innerHTML = '';
-    
-    const pool = [
-        { n: 'Rapid Fire', f: () => player.fireRate *= 0.8 },
-        { n: 'Caffeine Boost', f: () => player.speed += 0.8 },
-        { n: 'Nano-Repair', f: () => player.hp = player.maxHp },
-        { n: 'Damage+ ', f: () => player.bulletDmg += 20 }
-    ];
-
-    pool.forEach(u => {
-        const d = document.createElement('div');
-        d.className = 'card';
-        d.innerHTML = `<h3>${u.n}</h3>`;
-        d.onclick = () => {
-            u.f();
-            state.running = true;
-            document.getElementById('overlay').style.display = 'none';
-        };
-        choices.appendChild(d);
-    });
-}
-
-function showShop() {
-    state.running = false;
-    const shop = document.getElementById('shop-overlay');
-    const container = document.getElementById('shop-items');
-    shop.style.display = 'flex';
-    container.innerHTML = '';
-    document.getElementById('totalShards').innerText = meta.shards;
-
-    const items = [
-        { key: 'hp', n: 'Armor Plating', cost: 50 },
-        { key: 'dmg', n: 'Power Core', cost: 50 },
-        { key: 'speed', n: 'Thrusters', cost: 75 }
-    ];
-
-    items.forEach(i => {
-        const lvl = meta.upgrades[i.key];
-        const cost = i.cost * (lvl + 1);
-        const card = document.createElement('div');
-        card.className = `card ${meta.shards < cost ? 'disabled' : ''}`;
-        card.innerHTML = `<h3>${i.n}</h3><p>Level: ${lvl}</p><p>Cost: ${cost} Shards</p>`;
-        card.onclick = () => {
-            if(meta.shards >= cost) {
-                meta.shards -= cost;
-                meta.upgrades[i.key]++;
-                saveMeta();
-                showShop();
-            }
-        };
-        container.appendChild(card);
-    });
-}
+const player = new Player(), enemies = [], bullets = [];
 
 function loop() {
     if(state.running) {
         state.time++;
         player.update();
-
-        // Spawning
-        if(state.time % 60 === 0) {
-            const a = Math.random() * Math.PI * 2;
-            enemies.push(new Enemy(player.x + Math.cos(a)*800, player.y + Math.sin(a)*800, 'grunt'));
-        }
-        if(state.time === 2000) {
-            state.bossActive = true;
-            document.getElementById('boss-ui').style.display = 'flex';
-            enemies.push(new Enemy(player.x, player.y - 500, 'boss'));
-        }
-
-        // Bullets & Collision
+        if(state.time % 60 === 0) enemies.push(new Enemy(player.x+Math.random()*800-400, player.y-600, false));
+        if(state.time === 2000) { state.bossActive = true; document.getElementById('boss-ui').style.display='flex'; enemies.push(new Enemy(player.x, player.y-400, true)); }
+        
         bullets.forEach((b, i) => {
             b.update();
             if(b.life <= 0) bullets.splice(i, 1);
             enemies.forEach((e, ei) => {
-                if(Math.hypot(b.x - e.x, b.y - e.y) < e.r) {
-                    e.hp -= b.d;
-                    b.life = 0;
+                if(Math.hypot(b.x-e.x, b.y-e.y) < e.r) {
+                    e.hp -= b.d; b.life = 0;
                     if(e.hp <= 0) {
-                        if(e.isBoss) {
-                            state.bossActive = false;
-                            document.getElementById('boss-ui').style.display = 'none';
-                        }
-                        enemies.splice(ei, 1);
-                        player.xp += 35;
-                        state.shards += 5;
-                        state.score += 100;
-                        document.getElementById('scoreText').innerText = state.score;
+                        if(e.isBoss) document.getElementById('boss-ui').style.display='none';
+                        enemies.splice(ei, 1); state.score += 100; state.shards += 2;
+                        player.xp += 25; document.getElementById('scoreText').innerText = state.score;
                         document.getElementById('shardText').innerText = state.shards;
                     }
                 }
             });
         });
-
         enemies.forEach(e => e.update());
         if(player.hp <= 0) {
-            meta.shards += state.shards;
-            saveMeta();
-            showShop();
+            meta.shards += state.shards; localStorage.setItem(SAVE_KEY, JSON.stringify(meta));
+            document.getElementById('shop-overlay').style.display = 'flex';
+            document.getElementById('totalShards').innerText = meta.shards;
             return;
         }
     }
-
-    // Render
-    ctx.fillStyle = '#02040a';
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#02040a'; ctx.fillRect(0, 0, w, h);
     ctx.save();
-    if(state.shake > 0) { ctx.translate(Math.random()*state.shake, Math.random()*state.shake); state.shake *= 0.9; }
     ctx.translate(w/2 - player.x, h/2 - player.y);
-
-    // Player
-    ctx.shadowBlur = 15; ctx.shadowColor = '#00e5ff';
-    ctx.fillStyle = '#00e5ff';
-    ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, Math.PI*2); ctx.fill();
-
-    // Enemies
-    ctx.shadowColor = '#ff0055';
-    enemies.forEach(e => {
-        ctx.fillStyle = e.c;
-        ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, Math.PI*2); ctx.fill();
-    });
-
-    // Bullets
-    ctx.shadowBlur = 5; ctx.fillStyle = '#fff';
-    bullets.forEach(b => {
-        ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill();
-    });
-
+    player.draw();
+    enemies.forEach(e => e.draw());
+    bullets.forEach(b => b.draw());
     ctx.restore();
     requestAnimationFrame(loop);
 }
-
 loop();
 </script>
 </body>
