@@ -16,34 +16,21 @@
         #xp-bar { height: 100%; background: linear-gradient(90deg, #00e5ff, #00ffaa); width: 0%; transition: width 0.3s; box-shadow: 0 0 10px var(--neon-blue); }
         #skill-bar { height: 100%; background: var(--neon-purple); width: 0%; box-shadow: 0 0 10px var(--neon-purple); }
         
-        #minimap { position: absolute; top: 20px; right: 20px; width: clamp(80px, 15vw, 120px); height: clamp(80px, 15vw, 120px); background: rgba(0,0,0,0.6); border: 1px solid var(--neon-blue); border-radius: 8px; z-index: 20; overflow: hidden; pointer-events: none; display: none; }
+        #minimap { position: absolute; top: 20px; right: 20px; width: 120px; height: 120px; background: rgba(0,0,0,0.6); border: 1px solid var(--neon-blue); border-radius: 8px; z-index: 20; display: none; pointer-events: none; }
         #minimap-canvas { width: 100%; height: 100%; }
 
-        #boss-ui { display: none; position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); width: 70%; text-align: center; z-index: 10; }
-        .boss-bar { width: 100%; height: 12px; background: rgba(255,0,85,0.2); border: 1px solid #ff0055; border-radius: 6px; overflow: hidden; box-shadow: 0 0 15px rgba(255,0,85,0.3); }
-        #boss-hp-fill { height: 100%; background: #ff0055; width: 100%; transition: width 0.1s; }
-
-        #menu-overlay, #shop-overlay { position: absolute; inset: 0; background: rgba(2, 4, 10, 0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: all; z-index: 100; backdrop-filter: blur(10px); padding: 20px; box-sizing: border-box; }
+        #menu-overlay, #shop-overlay { position: absolute; inset: 0; background: rgba(2, 4, 10, 0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: all; z-index: 100; backdrop-filter: blur(10px); }
         #shop-overlay { display: none; }
         
-        .shop-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin: 20px 0; }
-        .upgrade-card { background: rgba(255,255,255,0.05); border: 1px solid var(--neon-blue); padding: 15px; border-radius: 12px; width: 140px; text-align: center; cursor: pointer; transition: 0.3s; }
-        .upgrade-card:hover { background: var(--neon-blue); color: #000; transform: translateY(-5px); }
-        
-        button { padding: clamp(10px, 3vw, 15px) clamp(20px, 6vw, 40px); background: var(--neon-blue); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: clamp(14px, 3.5vw, 18px); margin-top: 20px; color: #000; box-shadow: 0 0 15px var(--neon-blue); }
-        .glitch { animation: glitch-anim 0.2s infinite; text-shadow: 2px 0 var(--neon-pink), -2px 0 var(--neon-blue); }
-        @keyframes glitch-anim { 0% { transform: translate(0); } 20% { transform: translate(-3px, 2px); } 100% { transform: translate(0); } }
-
-        #joystick-zone { position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px; background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(0, 229, 255, 0.3); border-radius: 50%; display: none; touch-action: none; z-index: 50; }
-        #joystick-stick { position: absolute; top: 35px; left: 35px; width: 50px; height: 50px; background: radial-gradient(circle, var(--neon-blue), #008699); border-radius: 50%; box-shadow: 0 0 15px var(--neon-blue); pointer-events: none; }
-        #skill-hint { font-size: 10px; color: var(--neon-purple); margin-top: 5px; }
+        .upgrade-card { background: rgba(255,255,255,0.05); border: 1px solid var(--neon-blue); padding: 15px; border-radius: 12px; width: 140px; text-align: center; cursor: pointer; margin: 5px; }
+        button { padding: 15px 40px; background: var(--neon-blue); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: #000; box-shadow: 0 0 15px var(--neon-blue); }
     </style>
 </head>
 <body>
 
 <div id="menu-overlay">
-    <h1 class="glitch" style="color: var(--neon-blue); font-size: clamp(32px, 8vw, 64px); margin-bottom: 5px;">NEON SURVIVOR</h1>
-    <button id="start-btn">ENGAGE RUN</button>
+    <h1 style="color: var(--neon-blue); font-size: clamp(32px, 8vw, 64px);">NEON SURVIVOR</h1>
+    <button id="start-btn">ENGAGE PILOT</button>
 </div>
 
 <div id="ui">
@@ -52,43 +39,31 @@
     <div class="bar-container"><div id="hp-bar"></div></div>
     <div style="font-size: 12px;">LVL <span id="lvlText">1</span> | <span id="weapon-status" style="color:var(--neon-purple)">PULSE LASER</span></div>
     <div class="bar-container"><div id="xp-bar"></div></div>
-    <div id="skill-hint">NOVA READY (SPACE/TAP)</div>
+    <div style="font-size: 10px; color: var(--neon-purple);">NOVA READY (SPACE/TAP)</div>
     <div class="bar-container"><div id="skill-bar"></div></div>
 </div>
 
 <div id="minimap"><canvas id="minimap-canvas"></canvas></div>
 
-<div id="boss-ui">
-    <div style="color: #ff0055; font-weight: bold; margin-bottom: 5px; letter-spacing: 3px;">NEON WARDEN</div>
-    <div class="boss-bar"><div id="boss-hp-fill"></div></div>
-</div>
-
 <div id="shop-overlay">
-    <h1 style="color:var(--neon-pink)" class="glitch">SYSTEM TERMINATED</h1>
-    <h3 id="finalScoreDisplay"></h3>
+    <h1 style="color:var(--neon-pink)">CORE BREACHED</h1>
     <h2 id="walletDisplay">0 💎</h2>
-    <div class="shop-container">
-        <div class="upgrade-card" onclick="buyMeta('hp')"><b>+ HEALTH</b><br><span id="cost-hp">100</span> 💎</div>
-        <div class="upgrade-card" onclick="buyMeta('speed')"><b>+ SPEED</b><br><span id="cost-speed">100</span> 💎</div>
+    <div style="display:flex;">
+        <div class="upgrade-card" onclick="buyMeta('hp')"><b>+ HP</b><br><span id="cost-hp">100</span>💎</div>
+        <div class="upgrade-card" onclick="buyMeta('speed')"><b>+ SPD</b><br><span id="cost-speed">100</span>💎</div>
     </div>
-    <button onclick="location.reload()">RE-INITIALIZE RUN</button>
+    <button onclick="location.reload()">RE-SYNC</button>
 </div>
 
-<div id="joystick-zone"><div id="joystick-stick"></div></div>
+<div id="joystick-zone" style="position:absolute; bottom:40px; left:40px; width:120px; height:120px; border-radius:50%; background:rgba(255,255,255,0.05); border:2px solid var(--neon-blue); display:none; z-index:50;">
+    <div id="joystick-stick" style="position:absolute; top:35px; left:35px; width:50px; height:50px; border-radius:50%; background:var(--neon-blue); pointer-events:none;"></div>
+</div>
+
 <canvas id="game"></canvas>
 
 <script>
-// --- AUDIO ENGINE ---
+// Logic starts here
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-function playSfx(f, t, d, v=0.03) {
-    try {
-        let o = audioCtx.createOscillator(), g = audioCtx.createGain();
-        o.type = t; o.frequency.setValueAtTime(f, audioCtx.currentTime);
-        g.gain.setValueAtTime(v, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d);
-        o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + d);
-    } catch(e){}
-}
-
 const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
 const mCanvas = document.getElementById('minimap-canvas'), mCtx = mCanvas.getContext('2d');
 let w, h, player, enemies = [], lasers = [], gems = [], particles = [], boss = null;
@@ -99,16 +74,14 @@ let meta = JSON.parse(localStorage.getItem(SAVE_KEY)) || { shards: 0, hpLvl: 0, 
 const state = { running: false, score: 0, lastBossScore: 0, sessionShards: 0, difficulty: 1, skillCooldown: 5000 };
 let keys = {};
 
+// Input Logic
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 let joyPos = { x: 0, y: 0, active: false };
 
 if(isMobile) {
     const jZone = document.getElementById('joystick-zone');
     jZone.style.display = 'block';
-    jZone.addEventListener('touchstart', e => { 
-        if(e.touches[0].clientX < w/2) joyPos.active = true; 
-        else activateSkill();
-    });
+    window.addEventListener('touchstart', e => { if(e.touches[0].clientX < w/2) joyPos.active = true; else activateSkill(); });
     window.addEventListener('touchmove', e => { if(joyPos.active) { e.preventDefault(); updateJoy(e.touches[0]); } }, {passive: false});
     window.addEventListener('touchend', () => { joyPos.active = false; document.getElementById('joystick-stick').style.transform = `translate(0,0)`; });
 }
@@ -126,16 +99,10 @@ window.onkeydown = e => { keys[e.code] = true; if(e.code === 'Space') activateSk
 window.onkeyup = e => keys[e.code] = false;
 
 function activateSkill() {
-    let now = Date.now();
-    if(now - skillTimer < state.skillCooldown) return;
-    skillTimer = now; playSfx(150, 'square', 0.5, 0.1);
+    if(Date.now() - skillTimer < state.skillCooldown) return;
+    skillTimer = Date.now();
     particles.push({ x: player.x, y: player.y, r: 10, isNova: true, life: 1.0 });
     enemies.forEach(en => { if(Math.hypot(en.x - player.x, en.y - player.y) < 250) en.hp -= 15; });
-    if(boss && Math.hypot(boss.x - player.x, boss.y - player.y) < 250) boss.hp -= 10;
-}
-
-function spawnParticles(x, y, color, count=10) {
-    for(let i=0; i<count; i++) particles.push({ x, y, color, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, life: 1.0 });
 }
 
 class Player {
@@ -147,160 +114,85 @@ class Player {
         this.orbAngle = 0;
     }
     update() {
-        let mx = joyPos.active ? joyPos.x : (keys['KeyD']-keys['KeyA'] || keys['ArrowRight']-keys['ArrowLeft']);
-        let my = joyPos.active ? joyPos.y : (keys['KeyS']-keys['KeyW'] || keys['ArrowDown']-keys['ArrowUp']);
+        let mx = joyPos.active ? joyPos.x : (keys['KeyD']-keys['KeyA'] || keys['ArrowRight']-keys['ArrowLeft'] || 0);
+        let my = joyPos.active ? joyPos.y : (keys['KeyS']-keys['KeyW'] || keys['ArrowDown']-keys['ArrowUp'] || 0);
         if(mx || my) { let m = Math.hypot(mx,my); this.x += (mx/m)*this.speed; this.y += (my/m)*this.speed; }
         this.orbAngle += 0.05;
     }
     draw() {
-        ctx.shadowBlur = 15; ctx.shadowColor = '#0ff'; ctx.fillStyle = '#0ff';
-        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
-        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#0ff'; ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
         for(let i=0; i<3; i++) {
             let ang = this.orbAngle + (i * Math.PI * 2 / 3);
             let ox = this.x + Math.cos(ang) * 65, oy = this.y + Math.sin(ang) * 65;
             ctx.fillStyle = '#bd00ff'; ctx.beginPath(); ctx.arc(ox, oy, 6, 0, Math.PI*2); ctx.fill();
-            enemies.forEach(en => { if(Math.hypot(en.x-ox, en.y-oy) < en.r + 6) en.hp -= 0.08; });
         }
     }
-}
-
-function buyMeta(type) {
-    let cost = (type === 'hp' ? meta.hpLvl : meta.speedLvl) * 150 + 100;
-    if(meta.shards >= cost) {
-        meta.shards -= cost;
-        if(type === 'hp') meta.hpLvl++; else meta.speedLvl++;
-        localStorage.setItem(SAVE_KEY, JSON.stringify(meta));
-        updateShopUI();
-    }
-}
-
-function updateShopUI() {
-    document.getElementById('walletDisplay').innerText = meta.shards + " 💎";
-    document.getElementById('cost-hp').innerText = (meta.hpLvl * 150 + 100);
-    document.getElementById('cost-speed').innerText = (meta.speedLvl * 150 + 100);
 }
 
 function update(time) {
     if(!state.running) return;
     state.difficulty = 1 + (state.score / 5000);
     ctx.fillStyle = '#02040a'; ctx.fillRect(0, 0, w, h);
-
-    // Camera + Zoom Logic
-    let tx = player.x, ty = player.y;
-    if(boss) { tx = (player.x + boss.x)/2; ty = (player.y + boss.y)/2; cam.zoom = Math.max(0.6, 1 - Math.hypot(player.x-boss.x, player.y-boss.y)/1500); }
-    else cam.zoom = 1;
-    cam.x += (tx - cam.x) * 0.1; cam.y += (ty - cam.y) * 0.1;
-
-    ctx.save();
-    ctx.translate(w/2, h/2); ctx.scale(cam.zoom, cam.zoom); ctx.translate(-cam.x, -cam.y);
     
-    player.update();
-    player.draw();
+    cam.x += (player.x - cam.x) * 0.1; cam.y += (player.y - cam.y) * 0.1;
+    ctx.save(); ctx.translate(w/2 - cam.x, h/2 - cam.y);
+    
+    player.update(); player.draw();
 
-    // Weapon Evolution
-    let isElite = player.lvl >= 10;
-    if(isElite) document.getElementById('weapon-status').innerText = "VORTEX BEAM";
-
-    if (time - shootTimer > (isElite ? 60 : 400)) {
-        let target = boss || enemies.find(en => Math.hypot(en.x - player.x, en.y - player.y) < 600);
+    // Shooting
+    if (time - shootTimer > (player.lvl >= 10 ? 60 : 400)) {
+        let target = enemies.find(en => Math.hypot(en.x - player.x, en.y - player.y) < 600);
         if(target) {
-            playSfx(isElite?400:200, 'square', 0.1, 0.02);
-            lasers.push({ x: player.x, y: player.y, tx: target.x, ty: target.y, life: isElite?5:8, elite: isElite });
+            lasers.push({ x: player.x, y: player.y, tx: target.x, ty: target.y, life: 5 });
             target.hp -= 1; shootTimer = time;
         }
     }
 
     particles.forEach((p, i) => {
         if(p.isNova) {
-            p.r += 14; p.life -= 0.04;
-            ctx.strokeStyle = `rgba(189, 0, 255, ${p.life})`; ctx.lineWidth = 5;
-            ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.stroke();
-        } else {
-            p.x += p.vx; p.y += p.vy; p.life -= 0.02;
-            ctx.fillStyle = `rgba(255,0,85,${p.life})`; ctx.fillRect(p.x, p.y, 3, 3);
+            p.r += 10; p.life -= 0.05;
+            ctx.strokeStyle = `rgba(189,0,255,${p.life})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.stroke();
         }
         if(p.life <= 0) particles.splice(i, 1);
     });
-
-    if(state.score >= state.lastBossScore + 5000 && !boss) {
-        state.lastBossScore += 5000;
-        boss = { x: player.x+500, y: player.y, r: 60, hp: 60, maxHp: 60, speed: 1.3 };
-        document.getElementById('boss-ui').style.display = 'block';
-    }
-
-    if(boss) {
-        let a = Math.atan2(player.y-boss.y, player.x-boss.x);
-        boss.x += Math.cos(a)*boss.speed; boss.y += Math.sin(a)*boss.speed;
-        ctx.fillStyle = '#ff0055'; ctx.beginPath(); ctx.arc(boss.x, boss.y, boss.r, 0, Math.PI*2); ctx.fill();
-        document.getElementById('boss-hp-fill').style.width = (boss.hp/boss.maxHp*100)+'%';
-        if(boss.hp <= 0) {
-            spawnParticles(boss.x, boss.y, '#f05', 40);
-            for(let i=0; i<15; i++) gems.push({x: boss.x+Math.random()*40-20, y: boss.y+Math.random()*40-20, boss: true});
-            boss = null; state.score += 1000; document.getElementById('boss-ui').style.display = 'none';
-        } else if(Math.hypot(player.x-boss.x, player.y-boss.y) < player.r + boss.r) player.hp -= 1.0;
-    }
 
     enemies.forEach((en, i) => {
         let a = Math.atan2(player.y-en.y, player.x-en.x);
         en.x += Math.cos(a)*(en.speed * state.difficulty); en.y += Math.sin(a)*(en.speed * state.difficulty);
         ctx.fillStyle = en.color; ctx.beginPath(); ctx.arc(en.x, en.y, en.r, 0, Math.PI*2); ctx.fill();
-        if(en.hp <= 0) {
-            spawnParticles(en.x, en.y, en.color, 10); gems.push({x: en.x, y: en.y});
-            enemies.splice(i, 1); state.score += 10;
-        } else if(Math.hypot(player.x-en.x, player.y-en.y) < player.r + en.r) player.hp -= 0.4;
+        if(en.hp <= 0) { gems.push({x:en.x, y:en.y}); enemies.splice(i, 1); state.score += 10; }
+        if(Math.hypot(player.x-en.x, player.y-en.y) < player.r+en.r) player.hp -= 0.5;
     });
 
     lasers.forEach((l, i) => {
-        ctx.strokeStyle = l.elite ? '#ccff00' : '#0ff'; ctx.lineWidth = l.elite ? 6 : 4;
-        ctx.beginPath(); ctx.moveTo(l.x, l.y); ctx.lineTo(l.tx, l.ty); ctx.stroke();
+        ctx.strokeStyle = '#0ff'; ctx.beginPath(); ctx.moveTo(l.x, l.y); ctx.lineTo(l.tx, l.ty); ctx.stroke();
         if(--l.life <= 0) lasers.splice(i, 1);
     });
 
     gems.forEach((g, i) => {
-        const d = Math.hypot(player.x - g.x, player.y - g.y);
-        if(d < 140) { g.x += (player.x - g.x)*0.2; g.y += (player.y - g.y)*0.2; }
-        ctx.fillStyle = g.boss ? '#ccff00' : '#00e5ff'; ctx.fillRect(g.x-4, g.y-4, 8, 8);
-        if(d < 20) {
-            gems.splice(i, 1); player.xp += g.boss ? 150 : 15; state.sessionShards += g.boss ? 20 : 1;
-            if(player.xp >= player.maxXp) { player.lvl++; player.xp = 0; player.maxXp *= 1.3; player.hp = Math.min(player.maxHp, player.hp + 20); document.getElementById('lvlText').innerText = player.lvl; }
-        }
+        if(Math.hypot(player.x-g.x, player.y-g.y) < 100) { g.x += (player.x-g.x)*0.2; g.y += (player.y-g.y)*0.2; }
+        ctx.fillStyle = '#0ff'; ctx.fillRect(g.x, g.y, 6, 6);
+        if(Math.hypot(player.x-g.x, player.y-g.y) < 20) { gems.splice(i, 1); player.xp += 10; state.sessionShards++; }
     });
 
     ctx.restore();
 
-    // UI & Minimap
-    mCtx.fillStyle = '#000'; mCtx.fillRect(0,0,120,120);
-    enemies.forEach(en => { mCtx.fillStyle = en.color; mCtx.fillRect(60+(en.x-player.x)*0.08, 60+(en.y-player.y)*0.08, 2, 2); });
-    mCtx.fillStyle = '#0ff'; mCtx.fillRect(58, 58, 4, 4);
-
-    document.getElementById('hp-bar').style.width = (player.hp/player.maxHp*100) + '%';
-    document.getElementById('xp-bar').style.width = (player.xp/player.maxXp*100) + '%';
+    // UI Updates
+    document.getElementById('hp-bar').style.width = (player.hp/player.maxHp*100)+'%';
+    document.getElementById('xp-bar').style.width = (player.xp/player.maxXp*100)+'%';
     document.getElementById('skill-bar').style.width = Math.min(100, (Date.now()-skillTimer)/50)+'%';
     document.getElementById('scoreText').innerText = state.score;
     document.getElementById('shardText').innerText = meta.shards + state.sessionShards;
 
-    if(player.hp <= 0) { state.running = false; meta.shards += state.sessionShards; localStorage.setItem(SAVE_KEY, JSON.stringify(meta)); document.getElementById('finalScoreDisplay').innerText = "SCORE: " + state.score; updateShopUI(); document.getElementById('shop-overlay').style.display = 'flex'; }
+    if(player.hp <= 0) { state.running = false; meta.shards += state.sessionShards; localStorage.setItem(SAVE_KEY, JSON.stringify(meta)); document.getElementById('shop-overlay').style.display='flex'; }
+    if(Math.random() < 0.03) enemies.push({x:player.x+(Math.random()-0.5)*w*2, y:player.y+(Math.random()-0.5)*h*2, r:12, hp:1, speed:2, color:'#f05'});
     
-    if(Math.random() < 0.03 && !boss) {
-        let t = Math.random(), en = {x:player.x+(Math.random()-0.5)*w*2, y:player.y+(Math.random()-0.5)*h*2, r:12, hp:1, speed:2, color:'#f05'};
-        if(t > 0.85) { en.r=25; en.hp=6; en.speed=1; en.color='#bd00ff'; }
-        else if(t < 0.15) { en.r=7; en.speed=4.5; en.color='#ccff00'; }
-        enemies.push(en);
-    }
     requestAnimationFrame(update);
 }
 
-const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; mCanvas.width = 120; mCanvas.height = 120; };
+const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
 window.onresize = resize; resize();
-document.getElementById('start-btn').onclick = () => {
-    if(audioCtx.state === 'suspended') audioCtx.resume();
-    player = new Player(); state.running = true;
-    document.getElementById('menu-overlay').style.display = 'none';
-    document.getElementById('ui').style.display = 'block';
-    document.getElementById('minimap').style.display = 'block';
-    requestAnimationFrame(update);
-};
+document.getElementById('start-btn').onclick = () => { player = new Player(); state.running = true; document.getElementById('menu-overlay').style.display='none'; document.getElementById('ui').style.display='block'; requestAnimationFrame(update); };
 </script>
 </body>
 </html>
