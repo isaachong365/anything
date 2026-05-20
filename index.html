@@ -385,6 +385,115 @@ function loop() {
 // Start Game
 loop();
 </script>
+<script>
+// --- INITIALIZATION ---
+const player = new Player();
+const enemies = [];
+const bullets = [];
+const shards = [];
+
+// --- SPAWN LOGIC ---
+function spawnEnemy() {
+    if (state.bossActive && enemies.some(e => e.isBoss)) return;
+    
+    // Calculate a position outside the screen
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 700; 
+    const x = player.x + Math.cos(angle) * dist;
+    const y = player.y + Math.sin(angle) * dist;
+    
+    // Spawn Boss every 5000 points
+    if (state.score > 0 && state.score % 5000 === 0 && !state.bossActive) {
+        state.bossActive = true;
+        enemies.push(new Enemy(x, y, 'boss'));
+        document.getElementById('boss-ui').style.display = 'flex';
+    } else {
+        const type = Math.random() > 0.8 ? 'sniper' : 'grunt';
+        enemies.push(new Enemy(x, y, type));
+    }
+}
+
+// --- CORE RENDER ENGINE ---
+function loop() {
+    if (!state.running) return;
+
+    // 1. Clean Canvas
+    ctx.fillStyle = '#02040a';
+    ctx.fillRect(0, 0, w, h);
+
+    // 2. Camera Viewport (Follow Player)
+    ctx.save();
+    ctx.translate(w/2 - player.x, h/2 - player.y);
+
+    // 3. Draw Background Grid (So you can see movement)
+    ctx.strokeStyle = "rgba(0, 229, 255, 0.05)";
+    for(let i = -2000; i < 2000; i += 100) {
+        ctx.beginPath(); ctx.moveTo(i, -2000); ctx.lineTo(i, 2000); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-2000, i); ctx.lineTo(2000, i); ctx.stroke();
+    }
+
+    // 4. Update & Draw Player
+    player.update();
+    ctx.shadowBlur = 15; ctx.shadowColor = '#00e5ff';
+    ctx.fillStyle = '#00e5ff';
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
+    ctx.fill();
+
+    // 5. Update & Draw Enemies
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        e.update();
+        
+        ctx.fillStyle = e.c;
+        ctx.shadowColor = e.c;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
+        ctx.fill();
+
+        // Check Collision with Player Bullets
+        bullets.forEach(b => {
+            if (b.isP && Math.hypot(b.x - e.x, b.y - e.y) < e.r) {
+                e.hp -= b.d;
+                b.life = 0;
+                if(e.isBoss) {
+                    document.getElementById('boss-hp-fill').style.width = (e.hp / e.maxHp * 100) + "%";
+                }
+            }
+        });
+
+        if (e.hp <= 0) {
+            if(e.isBoss) {
+                state.bossActive = false;
+                document.getElementById('boss-ui').style.display = 'none';
+            }
+            state.score += e.isBoss ? 1000 : 25;
+            document.getElementById('scoreText').innerText = state.score;
+            enemies.splice(i, 1);
+        }
+    }
+
+    // 6. Update & Draw Bullets
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.update();
+        ctx.fillStyle = b.isP ? '#00e5ff' : '#ff0055';
+        ctx.fillRect(b.x - 2, b.y - 2, 4, 4);
+        if (b.life <= 0) bullets.splice(i, 1);
+    }
+
+    ctx.restore();
+
+    // 7. Update UI & Timing
+    document.getElementById('hp-bar').style.width = (player.hp / player.maxHp * 100) + "%";
+    state.time++;
+    if (state.time % 100 === 0) spawnEnemy();
+
+    requestAnimationFrame(loop);
+}
+
+// Start the game loop
+loop();
 </script>
 </body>
 </html>
