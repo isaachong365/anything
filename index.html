@@ -2,77 +2,69 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Prevents pitch zooming, sets 1:1 view layer scales for high performance mobile rendering -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>NEON SURVIVOR</title>
+    <title>NEON SURVIVOR: OVERDRIVE</title>
     <style>
         :root { --neon-blue: #00e5ff; --neon-pink: #ff0055; --neon-green: #ccff00; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #02040a; color: #fff; font-family: 'Segoe UI', sans-serif; user-select: none; -webkit-user-select: none; }
         canvas { display: block; position: absolute; top:0; left:0; width: 100%; height: 100%; z-index: 1; }
         
-        /* Responsive UI Overlay using clamp for cross-device scaling */
         #ui { position: absolute; inset: 20px; pointer-events: none; z-index: 10; font-size: clamp(12px, 2.5vw, 16px); }
-        #scoreBox { font-size: clamp(22px, 5vw, 32px); font-weight: bold; color: var(--neon-blue); }
+        #scoreBox { font-size: clamp(22px, 5vw, 32px); font-weight: bold; color: var(--neon-blue); text-shadow: 0 0 10px var(--neon-blue); }
         .bar-container { width: clamp(150px, 40vw, 220px); height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; margin: 5px 0 12px 0; overflow: hidden; }
-        #hp-bar { height: 100%; background: linear-gradient(90deg, #ff0055, #ff5e00); width: 100%; transition: width 0.3s; box-shadow: 0 0 10px var(--neon-pink); }
-        #xp-bar { height: 100%; background: linear-gradient(90deg, #00e5ff, #00ffaa); width: 0%; transition: width 0.3s; box-shadow: 0 0 10px var(--neon-blue); }
-        
-        #boss-ui { position: absolute; bottom: clamp(20px, 5vh, 40px); left: 50%; transform: translateX(-50%); display: none; flex-direction: column; align-items: center; z-index: 10; }
-        .boss-bar-bg { width: 70vw; height: 12px; background: rgba(255,0,85,0.2); border: 1px solid #ff0055; border-radius: 6px; overflow: hidden; }
-        #boss-hp-fill { height: 100%; background: #ff0055; box-shadow: 0 0 15px #ff0055; width: 100%; transition: width 0.1s; }
+        #hp-bar { height: 100%; background: linear-gradient(90deg, #ff0055, #ff5e00); width: 100%; transition: width 0.2s; box-shadow: 0 0 10px var(--neon-pink); }
+        #xp-bar { height: 100%; background: linear-gradient(90deg, #00e5ff, #00ffaa); width: 0%; transition: width 0.2s; box-shadow: 0 0 10px var(--neon-blue); }
         
         #overlay, #shop-overlay { position: absolute; inset: 0; background: rgba(2, 4, 10, 0.95); display: none; flex-direction: column; align-items: center; justify-content: center; pointer-events: all; z-index: 100; backdrop-filter: blur(10px); padding: 20px; box-sizing: border-box; }
-        .card-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; max-width: 90%; max-height: 70vh; overflow-y: auto; }
-        .card, .shop-item { background: #0a0f1e; border: 2px solid var(--neon-blue); padding: clamp(10px, 3vw, 20px); width: clamp(120px, 35vw, 180px); cursor: pointer; text-align: center; border-radius: 15px; transition: 0.3s; box-sizing: border-box; font-size: clamp(12px, 2.5vw, 15px); }
-        .card:hover:not(.disabled), .shop-item:hover:not(.disabled) { background: var(--neon-blue); color: #000; transform: translateY(-3px); box-shadow: 0 0 20px var(--neon-blue); }
+        .card-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; max-width: 90%; }
+        .card, .shop-item { background: #0a0f1e; border: 2px solid var(--neon-blue); padding: 20px; width: 160px; cursor: pointer; text-align: center; border-radius: 15px; transition: 0.3s; box-sizing: border-box; }
+        .card:hover, .shop-item:hover { background: var(--neon-blue); color: #000; transform: translateY(-5px); box-shadow: 0 0 20px var(--neon-blue); }
         
-        button { padding: clamp(10px, 3vw, 15px) clamp(20px, 6vw, 40px); background: var(--neon-blue); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: clamp(14px, 3.5vw, 18px); margin-top: 20px; color: #000; }
+        button { padding: 15px 40px; background: var(--neon-pink); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; color: #fff; box-shadow: 0 0 15px var(--neon-pink); }
         .glitch { animation: glitch-anim 0.2s infinite; text-shadow: 2px 0 var(--neon-pink), -2px 0 var(--neon-blue); }
-        @keyframes glitch-anim { 0% { transform: translate(0); } 20% { transform: translate(-3px, 2px); } 100% { transform: translate(0); } }
+        @keyframes glitch-anim { 0% { transform: translate(0); } 20% { transform: translate(-2px, 1px); } 100% { transform: translate(0); } }
 
-        /* On-Screen Mobile Virtual Touch Joystick Base Layout */
-        #joystick-zone { position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px; background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(0, 229, 255, 0.3); border-radius: 50%; display: none; touch-action: none; z-index: 50; pointer-events: all; }
-        #joystick-stick { position: absolute; top: 35px; left: 35px; width: 50px; height: 50px; background: radial-gradient(circle, var(--neon-blue), #008699); border-radius: 50%; box-shadow: 0 0 15px var(--neon-blue); touch-action: none; }
+        #joystick-zone { position: absolute; bottom: 40px; left: 40px; width: 110px; height: 110px; background: rgba(255, 255, 255, 0.03); border: 2px solid rgba(0, 229, 255, 0.2); border-radius: 50%; display: none; touch-action: none; z-index: 50; }
+        #joystick-stick { position: absolute; top: 35px; left: 35px; width: 40px; height: 40px; background: radial-gradient(circle, var(--neon-blue), #005f73); border-radius: 50%; box-shadow: 0 0 10px var(--neon-blue); }
     </style>
 </head>
 <body>
 
 <div id="ui">
     <div id="scoreBox">SCORE: <span id="scoreText">0</span></div>
-    <div style="font-size: clamp(12px, 3vw, 14px); color: var(--neon-green);">WALLET: <span id="shardText">0</span> 💎</div>
+    <div style="font-size: 14px; color: var(--neon-green); margin-top: 4px;">GEMS: <span id="shardText">0</span> 💎</div>
     <div class="bar-container"><div id="hp-bar"></div></div>
     <div style="font-size: 12px; letter-spacing: 2px;">LVL <span id="lvlText">1</span></div>
     <div class="bar-container"><div id="xp-bar"></div></div>
 </div>
 
-<div id="boss-ui">
-    <div style="color: #ff0055; font-weight: bold; margin-bottom: 5px; letter-spacing: 4px; font-size: 14px;">NEON WARDEN</div>
-    <div class="boss-bar-bg"><div id="boss-hp-fill"></div></div>
+<div id="overlay">
+    <h1 style="color: var(--neon-blue); letter-spacing: 2px;">AUGMENT ROUTINE DETECTED</h1>
+    <p style="color: #aaa; margin-bottom: 30px;">Select a system upgrade modification:</p>
+    <div id="choices" class="card-container"></div>
 </div>
 
-<div id="overlay"><h1>AUGMENT ACQUIRED</h1><div id="choices" class="card-container"></div></div>
-
 <div id="shop-overlay">
-    <h1 style="color:var(--neon-pink)" class="glitch">SYSTEM TERMINATED</h1>
-    <h2 style="color:#fff; font-size: 18px;">TOTAL SHARDS: <span id="walletShards">0</span> 💎</h2>
+    <h1 class="glitch" style="color: var(--neon-pink);">SYSTEM TERMINATED</h1>
+    <h2 style="font-weight: 300;">TOTAL WALLET: <span id="walletShards">0</span> 💎</h2>
+    <p style="color: #666; margin-bottom: 20px;">Purchase persistent firmware updates:</p>
     <div id="shop-items" class="card-container"></div>
+    <br>
     <button onclick="location.reload()">RE-INITIALIZE RUN</button>
 </div>
 
-<!-- Touch joystick container automatically toggled based on input device status -->
 <div id="joystick-zone"><div id="joystick-stick"></div></div>
-
 <canvas id="game"></canvas>
 
 <script>
-// --- AUDIO ---
+// --- SOUND SYNTHESIZER ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-function playSfx(freq, type, dur, vol=0.05) {
+function playSfx(freq, type, dur, vol=0.04) {
     try {
         if(audioCtx.state === 'suspended') audioCtx.resume();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
+        const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
         osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        if(type==='sawtooth') osc.frequency.exponentialRampToValueAtTime(freq*2, audioCtx.currentTime+dur);
         gain.gain.setValueAtTime(vol, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
         osc.connect(gain); gain.connect(audioCtx.destination);
@@ -80,155 +72,150 @@ function playSfx(freq, type, dur, vol=0.05) {
     } catch(e) {}
 }
 
-// --- SETUP ---
+// --- CONFIG & PERSISTENCE ---
 const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
-let w, h, player, enemies = [], bullets = [], particles = [], boss = null, camera = {x: 0, y: 0};
-const SAVE_KEY = "neon_survivor_v5_merged";
-let meta = JSON.parse(localStorage.getItem(SAVE_KEY)) || { shards: 0, upgrades: { hp: 0, dmg: 0, speed: 0, shotgun: 0, railgun: 0 } };
+let w, h, player, enemies = [], bullets = [], particles = [], camera = {x: 0, y: 0};
+const SAVE_KEY = "neon_survivor_v6";
 
-const state = { running: true, score: 0, sessionShards: 0, time: 0, shake: 0, diffMult: 1 };
+let meta = JSON.parse(localStorage.getItem(SAVE_KEY)) || { 
+    shards: 0, 
+    upgrades: { hp: 0, dmg: 0, speed: 0, shotgun: 0, railgun: 0 } 
+};
+
+const state = { running: true, score: 0, sessionShards: 0, shake: 0, spawnTimer: 0 };
 const keys = {};
 
-// Mobile inputs state tracker
 let isMobile = false;
-let touchInput = { active: false, startX: 0, startY: 0, curX: 0, curY: 0, moveX: 0, moveY: 0 };
-let pointerAngle = 0; 
+let touchInput = { active: false, startX: 0, startY: 0, moveX: 0, moveY: 0 };
+let pointerAngle = 0;
 
-// Base audio interaction activation wrapper
 function initAudio() { if(audioCtx.state === 'suspended') audioCtx.resume(); }
 window.onkeydown = e => { keys[e.code] = true; initAudio(); };
 window.onkeyup = e => keys[e.code] = false;
 
-const resize = () => { 
-    w = canvas.width = window.innerWidth; 
-    h = canvas.height = window.innerHeight; 
-};
-window.onresize = resize; window.addEventListener('orientationchange', () => setTimeout(resize, 200)); resize();
+const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
+window.onresize = resize; resize();
 
-// --- VIRTUAL JOYSTICK CONTROLLER FOR MOBILE/IPAD ---
+// --- FIXED & OPTIMISED TOUCH CONTROLS ---
 const joyZone = document.getElementById('joystick-zone');
 const joyStick = document.getElementById('joystick-stick');
-const joyMaxRadius = 45;
+const joyMaxRadius = 40;
 
-function setupMobileControls() {
-    window.addEventListener('touchstart', (e) => {
-        isMobile = true;
-        joyZone.style.display = "block"; // Make joystick visible on first screen interaction
-        initAudio();
-    }, {passive: true});
+window.addEventListener('touchstart', () => {
+    if(!isMobile) { isMobile = true; joyZone.style.display = "block"; }
+    initAudio();
+}, {passive: true});
 
-    joyZone.addEventListener('touchstart', (e) => {
-        const t = e.touches[0];
-        const b = joyZone.getBoundingClientRect();
-        touchInput.startX = b.left + b.width / 2;
-        touchInput.startY = b.top + b.height / 2;
-        touchInput.active = true;
-    }, {passive: true});
+joyZone.addEventListener('touchstart', (e) => {
+    const b = joyZone.getBoundingClientRect();
+    touchInput.startX = b.left + b.width / 2;
+    touchInput.startY = b.top + b.height / 2;
+    touchInput.active = true;
+}, {passive: true});
 
-    window.addEventListener('touchmove', (e) => {
-        if (!touchInput.active) return;
-        const t = e.touches[0];
-        let dx = t.clientX - touchInput.startX;
-        let dy = t.clientY - touchInput.startY;
-        const dist = Math.hypot(dx, dy);
+window.addEventListener('touchmove', (e) => {
+    if (!touchInput.active) return;
+    const t = e.touches[0];
+    let dx = t.clientX - touchInput.startX;
+    let dy = t.clientY - touchInput.startY;
+    const dist = Math.hypot(dx, dy);
 
-        if (dist > joyMaxRadius) {
-            dx = (dx / dist) * joyMaxRadius;
-            dy = (dy / dist) * joyMaxRadius;
-        }
-
-        joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
-        touchInput.moveX = dx / joyMaxRadius;
-        touchInput.moveY = dy / joyMaxRadius;
-    }, {passive: false});
-
-    window.addEventListener('touchend', (e) => {
-        touchInput.active = false;
-        touchInput.moveX = 0;
-        touchInput.moveY = 0;
-        joyStick.style.transform = `translate(0px, 0px)`;
-    }, {passive: true});
-
-    // Track active tap locations to update fire mechanics orientation
-    window.addEventListener('touchmove', (e) => {
-        if(e.touches.length > 0 && !touchInput.active) {
-            const t = e.touches[0];
-            pointerAngle = Math.atan2(t.clientY - h/2, t.clientX - w/2);
-        }
-    }, {passive: true});
-}
-
-// Laptop Mouse input coordinates parser
-window.addEventListener('mousemove', (e) => {
-    if(!isMobile) {
-        pointerAngle = Math.atan2(e.clientY - h/2, e.clientX - w/2);
+    if (dist > joyMaxRadius) {
+        dx = (dx / dist) * joyMaxRadius;
+        dy = (dy / dist) * joyMaxRadius;
     }
-});
-window.addEventListener('mousedown', () => initAudio());
 
-// --- CLASSES ---
+    joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
+    touchInput.moveX = dx / joyMaxRadius;
+    touchInput.moveY = dy / joyMaxRadius;
+}, {passive: false});
+
+window.addEventListener('touchend', () => {
+    touchInput.active = false;
+    touchInput.moveX = 0; touchInput.moveY = 0;
+    joyStick.style.transform = `translate(0px, 0px)`;
+}, {passive: true});
+
+window.addEventListener('mousemove', (e) => {
+    if(!isMobile) pointerAngle = Math.atan2(e.clientY - h/2, e.clientX - w/2);
+});
+
+// --- ENTITIES & IN-GAME ENGINE ---
 class Particle {
     constructor(x, y, color) {
         this.x = x; this.y = y; this.color = color;
-        this.vx = (Math.random() - 0.5) * 10;
-        this.vy = (Math.random() - 0.5) * 10;
+        this.vx = (Math.random() - 0.5) * 8;
+        this.vy = (Math.random() - 0.5) * 8;
         this.life = 1.0;
+        this.size = Math.random() * 3 + 1;
     }
-    update() { this.x += this.vx; this.y += this.vy; this.life -= 0.03; }
+    update() { this.x += this.vx; this.y += this.vy; this.life -= 0.04; }
     draw() {
-        ctx.globalAlpha = this.life; ctx.fillStyle = this.color;
-        ctx.fillRect(this.x - camera.x, this.y - camera.y, 3, 3);
-        ctx.globalAlpha = 1;
+        ctx.save(); ctx.globalAlpha = this.life; ctx.fillStyle = this.color;
+        ctx.fillRect(this.x - camera.x, this.y - camera.y, this.size, this.size);
+        ctx.restore();
     }
 }
 
 class Bullet {
     constructor(x, y, angle, dmg, speed = 14) {
         this.x = x; this.y = y; this.angle = angle; this.dmg = dmg; this.speed = speed;
-        this.active = true;
     }
     update() {
         this.x += Math.cos(this.angle) * this.speed;
         this.y += Math.sin(this.angle) * this.speed;
     }
     draw() {
-        ctx.fillStyle = '#ccff00'; ctx.shadowBlur = 10; ctx.shadowColor = '#ccff00';
-        ctx.fillRect(this.x - camera.x - 2, this.y - camera.y - 2, 6, 6);
+        ctx.fillStyle = '#ccff00'; ctx.shadowBlur = 8; ctx.shadowColor = '#ccff00';
+        ctx.fillRect(this.x - camera.x - 3, this.y - camera.y - 3, 6, 6);
+    }
+}
+
+class Enemy {
+    constructor(x, y, type = 'scout') {
+        this.x = x; this.y = y; this.type = type;
+        if(type === 'tank') {
+            this.hp = 120; this.r = 20; this.speed = 1.2; this.color = '#ff0055'; this.xpValue = 50;
+        } else {
+            this.hp = 35; this.r = 12; this.speed = 2.4; this.color = '#ff7700'; this.xpValue = 20;
+        }
+    }
+    update() {
+        let angle = Math.atan2(player.y - this.y, player.x - this.x);
+        this.x += Math.cos(angle) * this.speed;
+        this.y += Math.sin(angle) * this.speed;
+    }
+    draw() {
+        ctx.fillStyle = this.color; ctx.shadowBlur = 10; ctx.shadowColor = this.color;
+        ctx.beginPath(); ctx.arc(this.x - camera.x, this.y - camera.y, this.r, 0, Math.PI*2); ctx.fill();
     }
 }
 
 class Player {
     constructor() {
         this.x = 0; this.y = 0; this.r = 18; this.angle = 0;
-        this.speed = 4.5 + (meta.upgrades.speed * 0.7);
+        this.speed = 4.0 + (meta.upgrades.speed * 0.6);
         this.maxHp = 100 + (meta.upgrades.hp * 25);
         this.hp = this.maxHp;
         this.bulletDmg = 40 + (meta.upgrades.dmg * 15);
         this.xp = 0; this.nextXP = 100; this.lvl = 1;
-        this.fireRate = 450; this.lastShot = 0;
+        this.fireRate = 400; this.lastShot = 0;
     }
     update() {
         let mx = 0, my = 0;
-        
-        // Handle Laptop Keyboard system inputs
-        if(keys['KeyW'] || keys['ArrowUp']) my--; 
-        if(keys['KeyS'] || keys['ArrowDown']) my++;
-        if(keys['KeyA'] || keys['ArrowLeft']) mx--; 
-        if(keys['KeyD'] || keys['ArrowRight']) mx++;
+        if(keys['KeyW'] || keys['ArrowUp']) my--; if(keys['KeyS'] || keys['ArrowDown']) my++;
+        if(keys['KeyA'] || keys['ArrowLeft']) mx--; if(keys['KeyD'] || keys['ArrowRight']) mx++;
         
         if (mx !== 0 || my !== 0) {
             const mag = Math.hypot(mx, my);
             this.x += (mx / mag) * this.speed;
             this.y += (my / mag) * this.speed;
             this.angle = Math.atan2(my, mx);
-        } 
-        // Fallback or override to Virtual Joystick processing for iPad/Mobile
-        else if (touchInput.active && (Math.abs(touchInput.moveX) > 0.1 || Math.abs(touchInput.moveY) > 0.1)) {
+        } else if (touchInput.active) {
             this.x += touchInput.moveX * this.speed;
             this.y += touchInput.moveY * this.speed;
             this.angle = Math.atan2(touchInput.moveY, touchInput.moveX);
-        } else {
-            // Face target position when standing still
+        } else if (!isMobile) {
             this.angle = pointerAngle;
         }
 
@@ -239,141 +226,191 @@ class Player {
     draw() {
         ctx.save(); ctx.translate(this.x - camera.x, this.y - camera.y); ctx.rotate(this.angle);
         ctx.shadowBlur = 15; ctx.shadowColor = '#00e5ff'; ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(this.r, 0); ctx.lineTo(-this.r, -this.r); ctx.lineTo(-this.r, this.r); ctx.closePath();
-        ctx.stroke(); ctx.restore();
+        ctx.beginPath(); ctx.moveTo(this.r, 0); ctx.lineTo(-this.r, -this.r); ctx.lineTo(-this.r, this.r); ctx.closePath(); ctx.stroke(); 
+        ctx.restore();
     }
     shoot() {
-        // Automatically aims at closest enemy, otherwise falls back to current pointer orientation direction
         let target = enemies.reduce((p, c) => {
             let d = Math.hypot(c.x-this.x, c.y-this.y);
             return d < p.dist ? {o: c, dist: d} : p;
-        }, {o: null, dist: 900}).o;
+        }, {o: null, dist: 600}).o;
         
         this.lastShot = Date.now();
-        playSfx(600, 'sine', 0.1);
+        playSfx(550, 'sine', 0.08);
         
         let a = target ? Math.atan2(target.y-this.y, target.x-this.x) : this.angle;
         bullets.push(new Bullet(this.x, this.y, a, this.bulletDmg));
         
         if(meta.upgrades.shotgun > 0) {
-            bullets.push(new Bullet(this.x, this.y, a-0.2, this.bulletDmg*0.5));
-            bullets.push(new Bullet(this.x, this.y, a+0.2, this.bulletDmg*0.5));
+            bullets.push(new Bullet(this.x, this.y, a - 0.2, this.bulletDmg * 0.6));
+            bullets.push(new Bullet(this.x, this.y, a + 0.2, this.bulletDmg * 0.6));
         }
         if(meta.upgrades.railgun > 0) {
-            bullets.push(new Bullet(this.x, this.y, a, this.bulletDmg * 2, 24));
+            bullets.push(new Bullet(this.x, this.y, a, this.bulletDmg * 1.8, 22));
         }
     }
 }
 
-// --- BASIC ENGINE INITIALIZATION ---
 player = new Player();
-setupMobileControls();
+document.getElementById('shardText').innerText = meta.shards;
 
+// --- INTERACTIVE AUGMENT LEVEL UP OVERLAY ---
+function triggerLevelUp() {
+    state.running = false;
+    const choicesDiv = document.getElementById('choices');
+    choicesDiv.innerHTML = '';
+    
+    const options = [
+        { name: 'Fire Booster', desc: 'Weapon Fire-Rate +20%', action: () => player.fireRate *= 0.8 },
+        { name: 'Nano Repairs', desc: 'Instantly Heal 40 HP', action: () => player.hp = Math.min(player.maxHp, player.hp + 40) },
+        { name: 'Kinetic Shells', desc: 'Bullet Damage +25%', action: () => player.bulletDmg *= 1.25 }
+    ];
+
+    options.forEach(opt => {
+        let card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `<h3>${opt.name}</h3><p>${opt.desc}</p>`;
+        card.onclick = () => {
+            opt.action();
+            document.getElementById('hp-bar').style.width = (player.hp / player.maxHp * 100) + '%';
+            document.getElementById('overlay').style.display = 'none';
+            state.running = true;
+            playSfx(700, 'triangle', 0.2);
+        };
+        choicesDiv.appendChild(card);
+    });
+    document.getElementById('overlay').style.display = 'flex';
+}
+
+// --- SHOP PERSISTENT FIRMWARE FIRING HOOK ---
+function buyMetaUpgrade(type, cost) {
+    if(meta.shards >= cost) {
+        meta.shards -= cost;
+        meta.upgrades[type]++;
+        localStorage.setItem(SAVE_KEY, JSON.stringify(meta));
+        playSfx(440, 'sawtooth', 0.2);
+        openMetaShop();
+    } else {
+        playSfx(120, 'square', 0.25);
+    }
+}
+
+function openMetaShop() {
+    document.getElementById('walletShards').innerText = meta.shards;
+    const shopItemsDiv = document.getElementById('shop-items');
+    shopItemsDiv.innerHTML = '';
+
+    const list = [
+        { id: 'hp', name: 'Max Integrity Matrix', cost: 5 },
+        { id: 'dmg', name: 'Core Flux Modifiers', cost: 8 },
+        { id: 'speed', name: 'Thruster Regulators', cost: 6 },
+        { id: 'shotgun', name: 'Unlock Spread Array', cost: 15, max: 1 },
+        { id: 'railgun', name: 'Unlock Hyper Railgun', cost: 20, max: 1 }
+    ];
+
+    list.forEach(item => {
+        let owned = meta.upgrades[item.id];
+        if(item.max && owned >= item.max) return;
+        
+        let card = document.createElement('div');
+        card.className = 'shop-item';
+        card.innerHTML = `<h4>${item.name}</h4><p>Cost: ${item.cost} 💎</p><small>Owned: ${owned}</small>`;
+        card.onclick = () => buyMetaUpgrade(item.id, item.cost);
+        shopItemsDiv.appendChild(card);
+    });
+}
+
+// --- RENDERING & COLLISION TIMELINE ---
 function gameLoop() {
-    ctx.fillStyle = 'rgba(2, 4, 10, 0.3)';
+    ctx.fillStyle = 'rgba(2, 4, 10, 0.25)';
     ctx.fillRect(0, 0, w, h);
 
-    // Grid rendering system inside context boundaries
-    ctx.strokeStyle = 'rgba(0, 229, 255, 0.03)';
+    ctx.save();
+    if(state.shake > 0) {
+        ctx.translate((Math.random()-0.5)*state.shake, (Math.random()-0.5)*state.shake);
+        state.shake *= 0.9;
+    }
+
+    // Grid system lines
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.04)';
     ctx.lineWidth = 1;
-    let gridSize = 60;
-    let startX = Math.floor(camera.x / gridSize) * gridSize;
-    let startY = Math.floor(camera.y / gridSize) * gridSize;
-    for (let x = startX; x < startX + w + gridSize; x += gridSize) {
-        ctx.beginPath(); ctx.moveTo(x - camera.x, 0); ctx.lineTo(x - camera.x, h); ctx.stroke();
-    }
-    for (let y = startY; y < startY + h + gridSize; y += gridSize) {
-        ctx.beginPath(); ctx.moveTo(0, y - camera.y); ctx.lineTo(w, y - camera.y); ctx.stroke();
-    }
+    let step = 60, sX = Math.floor(camera.x/step)*step, sY = Math.floor(camera.y/step)*step;
+    for(let x=sX; x<sX+w+step; x+=step) { ctx.beginPath(); ctx.moveTo(x-camera.x, 0); ctx.lineTo(x-camera.x, h); ctx.stroke(); }
+    for(let y=sY; y<sY+h+step; y+=step) { ctx.beginPath(); ctx.moveTo(0, y-camera.y); ctx.lineTo(w, y-camera.y); ctx.stroke(); }
 
     if (state.running) {
         player.update();
-        
-        // Spawn standard test targets occasionally for interactivity verification
-        if (Math.random() < 0.02 && enemies.length < 10) {
-            enemies.push({
-                x: player.x + (Math.random() - 0.5) * w * 1.5,
-                y: player.y + (Math.random() - 0.5) * h * 1.5,
-                hp: 50, r: 12, color: '#ff0055'
-            });
+        state.spawnTimer++;
+        if(state.spawnTimer % 50 === 0) {
+            let edgeAngle = Math.random() * Math.PI * 2;
+            let spawnX = player.x + Math.cos(edgeAngle) * (w/1.2);
+            let spawnY = player.y + Math.sin(edgeAngle) * (h/1.2);
+            let type = Math.random() > 0.75 ? 'tank' : 'scout';
+            enemies.push(new Enemy(spawnX, spawnY, type));
         }
     }
 
-    // Process bullet movements and check hits
+    // Update bullets array
     for (let i = bullets.length - 1; i >= 0; i--) {
         let b = bullets[i];
-        b.update();
+        if(state.running) b.update();
         b.draw();
         
         for (let j = enemies.length - 1; j >= 0; j--) {
             let e = enemies[j];
-            if (Math.hypot(b.x - e.x, b.y - e.y) < e.r + 5) {
+            if (Math.hypot(b.x - e.x, b.y - e.y) < e.r + 6) {
                 e.hp -= b.dmg;
                 bullets.splice(i, 1);
-                playSfx(150, 'triangle', 0.05);
-                
-                // Spawn target destruction particle burst effect
-                for(let p=0; p<5; p++) particles.push(new Particle(e.x, e.y, e.color));
+                state.shake = 6;
+                for(let p=0; p<6; p++) particles.push(new Particle(e.x, e.y, e.color));
                 
                 if (e.hp <= 0) {
                     enemies.splice(j, 1);
-                    state.score += 100;
-                    state.sessionShards += 1;
+                    state.score += 100; state.sessionShards++;
                     document.getElementById('scoreText').innerText = state.score;
                     document.getElementById('shardText').innerText = state.sessionShards + meta.shards;
                     
-                    player.xp += 25;
+                    player.xp += e.xpValue;
                     if (player.xp >= player.nextXP) {
-                        player.xp = 0;
-                        player.lvl++;
+                        player.xp -= player.nextXP; player.lvl++;
+                        player.nextXP = Math.floor(player.nextXP * 1.2);
                         document.getElementById('lvlText').innerText = player.lvl;
-                        playSfx(800, 'sawtooth', 0.3);
+                        triggerLevelUp();
                     }
                     document.getElementById('xp-bar').style.width = (player.xp / player.nextXP * 100) + '%';
                 }
                 break;
             }
         }
-        
-        // Clean out of bounds bullets
-        if (b.x < player.x - w || b.x > player.x + w || b.y < player.y - h || b.y > player.y + h) {
-            bullets.splice(i, 1);
-        }
+        if(b.x < player.x-w || b.x > player.x+w || b.y < player.y-h || b.y > player.y+h) bullets.splice(i,1);
     }
 
-    // Process remaining components
-    enemies.forEach(e => {
-        let angle = Math.atan2(player.y - e.y, player.x - e.x);
-        if(state.running) {
-            e.x += Math.cos(angle) * 2;
-            e.y += Math.sin(angle) * 2;
-        }
-        ctx.fillStyle = e.color;
-        ctx.shadowBlur = 10; ctx.shadowColor = e.color;
-        ctx.beginPath(); ctx.arc(e.x - camera.x, e.y - camera.y, e.r, 0, Math.PI*2); ctx.fill();
+    // Process enemy entities
+    enemies.forEach((e, idx) => {
+        if(state.running) e.update();
+        e.draw();
         
-        // Touch base unit damage resolution
         if (state.running && Math.hypot(player.x - e.x, player.y - e.y) < player.r + e.r) {
-            player.hp -= 0.5;
+            player.hp -= (e.type === 'tank' ? 0.8 : 0.4);
             document.getElementById('hp-bar').style.width = Math.max(0, (player.hp / player.maxHp * 100)) + '%';
             if (player.hp <= 0) {
                 state.running = false;
                 meta.shards += state.sessionShards;
                 localStorage.setItem(SAVE_KEY, JSON.stringify(meta));
-                document.getElementById('walletShards').innerText = meta.shards;
+                openMetaShop();
                 document.getElementById('shop-overlay').style.display = 'flex';
             }
         }
     });
 
     for(let i = particles.length-1; i >= 0; i--) {
-        particles[i].update();
-        particles[i].draw();
+        particles[i].update(); particles[i].draw();
         if(particles[i].life <= 0) particles.splice(i, 1);
     }
 
     player.draw();
-    ctx.shadowBlur = 0; // Reset canvas shadows filters for subsequent frame requests
+    ctx.restore();
+    ctx.shadowBlur = 0;
     requestAnimationFrame(gameLoop);
 }
 gameLoop();
