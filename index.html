@@ -91,7 +91,7 @@ function playSfx(freq, type, dur, vol=0.05) {
 
 // --- SETUP ---
 const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
-let w, h, player, enemies = [], bullets = [], particles = [], boss = null, camera = {x: 0, y: 0};
+let w, h, player, enemies = [], bullets = [], particles = [], numbers = [], boss = null, camera = {x: 0, y: 0};
 const SAVE_KEY = "neon_survivor_v6_final";
 
 // Persistent Data Model Setup
@@ -178,6 +178,38 @@ const WEAPON_TYPES = {
     shotgun: { name: "Spread Shotgun", cd: 48, speed: 7.5, spread: 0.24, count: 4, color: '#ffaa00', size: 4.5, pierce: false },
     railgun: { name: "Hyper Railgun", cd: 65, speed: 18, spread: 0, count: 1, color: '#00e5ff', size: 7, pierce: true }
 };
+
+// --- VISUAL DAMAGE NUMBERS CLASS ---
+class DamageNumber {
+    constructor(x, y, text, color = '#ff0055') {
+        this.x = x + (Math.random() - 0.5) * 15;
+        this.y = y - 10;
+        this.text = text;
+        this.color = color;
+        this.alpha = 1;
+        this.vx = (Math.random() - 0.5) * 1.5;
+        this.vy = -2 - Math.random() * 1.5;
+        this.life = 35;
+    }
+    update(dt) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.vy += 0.08 * dt; // gravity drop drift
+        this.life -= dt;
+        this.alpha = Math.max(0, this.life / 35);
+    }
+    draw() {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.fillStyle = this.color;
+        ctx.font = `bold ${this.text.toString().includes('CRIT') ? '16px' : '12px'} 'Segoe UI', sans-serif`;
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = this.color;
+        ctx.textAlign = 'center';
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+    }
+}
 
 // --- GAME ENTITIES ---
 class Player {
@@ -277,6 +309,34 @@ class Bullet {
     }
 }
 
+// --- PROCEDURAL GRID SYSTEM ---
+function drawProceduralGrid() {
+    const gridSize = 100;
+    // Calculate boundaries matching localized viewport viewport coordinates
+    let startX = Math.floor((camera.x - w / 2) / gridSize) * gridSize;
+    let endX = Math.ceil((camera.x + w / 2) / gridSize) * gridSize;
+    let startY = Math.floor((camera.y - h / 2) / gridSize) * gridSize;
+    let endY = Math.ceil((camera.y + h / 2) / gridSize) * gridSize;
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.04)';
+    ctx.lineWidth = 1;
+
+    for (let x = startX; x <= endX; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, startY);
+        ctx.lineTo(x, endY);
+        ctx.stroke();
+    }
+    for (let y = startY; y <= endY; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(startX, y);
+        ctx.lineTo(endX, y);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
 // --- ENGINE LOGIC ---
 function spawnEnemy() {
     if (!state.running || state.choiceActive) return;
@@ -336,9 +396,16 @@ function checkCollisions() {
     bullets.forEach(b => {
         enemies.forEach(e => {
             if (Math.hypot(b.x - e.x, b.y - e.y) < e.radius + b.size) {
-                e.hp -= b.dmg; 
+                // Calculation algorithms for random localized critical strike strikes
+                let isCrit = Math.random() < 0.15;
+                let finalDmg = Math.floor(b.dmg * (isCrit ? 1.8 : 1));
+                
+                e.hp -= finalDmg; 
                 if(!b.pierce) b.life = 0;
-                playSfx(200, 'sine', 0.05, 0.03);
+                
+                // Add new floating combat string text instances
+                numbers.push(new DamageNumber(e.x, e.y, isCrit ? `${finalDmg}! CRIT` : finalDmg, isCrit ? '#ccff00' : '#ffffff'));
+                playSfx(isCrit ? 300 : 200, 'sine', 0.05, 0.03);
                 
                 if (e.hp <= 0) {
                     if (e.variant === 'boss') {
@@ -481,35 +548,4 @@ function gameLoop(timestamp) {
         handleFire(dt);
         enemies.forEach(e => e.update(dt));
         bullets.forEach(b => b.update(dt));
-        checkCollisions();
-
-        camera.x += (player.x - camera.x) * 0.1;
-        camera.y += (player.y - camera.y) * 0.1;
-
-        ctx.save();
-        let sx = (Math.random() - 0.5) * state.shake;
-        let sy = (Math.random() - 0.5) * state.shake;
-        ctx.translate(w / 2 + sx - camera.x, h / 2 + sy - camera.y);
-
-        player.draw();
-        enemies.forEach(e => e.draw());
-        bullets.forEach(b => b.draw());
-        ctx.restore();
-
-        if (state.shake > 0) state.shake -= 0.5;
-        updateUI();
-    }
-    requestAnimationFrame(gameLoop);
-}
-
-// --- STARTER HOOKS ---
-document.getElementById('start-btn').addEventListener('click', () => {
-    document.getElementById('menu-overlay').style.display = 'none';
-    document.getElementById('ui').style.display = 'block';
-    player = new Player();
-    state.running = true;
-    requestAnimationFrame(gameLoop);
-});
-</script>
-</body>
-</html>
+        
