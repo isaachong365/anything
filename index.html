@@ -295,6 +295,96 @@ function loop() {
 }
 
 spawn(); loop();
+    // --- INITIALIZE ---
+const player = new Player();
+const enemies = [];
+const bullets = [];
+const shards = [];
+
+function spawnEnemy() {
+    if (state.bossActive) return;
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 600;
+    const x = player.x + Math.cos(angle) * dist;
+    const y = player.y + Math.sin(angle) * dist;
+    const type = Math.random() > 0.8 ? 'sniper' : 'grunt';
+    enemies.push(new Enemy(x, y, type));
+}
+
+// --- MAIN LOOP ---
+function loop() {
+    if (!state.running) return;
+
+    // 1. Clear Screen
+    ctx.fillStyle = '#02040a';
+    ctx.fillRect(0, 0, w, h);
+
+    // 2. Camera Shake & Follow
+    ctx.save();
+    if (state.shake > 0) {
+        ctx.translate(Math.random() * state.shake, Math.random() * state.shake);
+        state.shake *= 0.9;
+    }
+    ctx.translate(w/2 - player.x, h/2 - player.y);
+
+    // 3. Update & Draw Player
+    player.update();
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
+    ctx.fillStyle = '#00e5ff';
+    ctx.fill();
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#00e5ff';
+
+    // 4. Handle Bullets
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.update();
+        ctx.fillStyle = b.isP ? '#00e5ff' : '#ff0055';
+        ctx.fillRect(b.x, b.y, 4, 4);
+        if (b.life <= 0) bullets.splice(i, 1);
+    }
+
+    // 5. Handle Enemies
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        e.update();
+        
+        // Draw Enemy
+        ctx.fillStyle = e.c;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
+        ctx.fill();
+
+        // Bullet Collision
+        bullets.forEach(b => {
+            if (b.isP && Math.hypot(b.x - e.x, b.y - e.y) < e.r) {
+                e.hp -= b.d;
+                b.life = 0;
+            }
+        });
+
+        if (e.hp <= 0) {
+            state.score += e.isBoss ? 1000 : 10;
+            document.getElementById('scoreText').innerText = state.score;
+            enemies.splice(i, 1);
+        }
+    }
+
+    ctx.restore();
+
+    // 6. UI Updates
+    document.getElementById('hp-bar').style.width = (player.hp / player.maxHp * 100) + "%";
+    
+    state.time++;
+    if (state.time % 60 === 0) spawnEnemy();
+
+    requestAnimationFrame(loop);
+}
+
+// Start Game
+loop();
+</script>
 </script>
 </body>
 </html>
