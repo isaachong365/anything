@@ -263,12 +263,147 @@ function loop() {
     }
 
     state.time++;
-    if(state.time % 60 === 0) spawnEnemy();
+    if(state.time % 60 === 60) spawnEnemy();
 
     requestAnimationFrame(loop);
 }
 
 loop();
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #1a1a1a;
+            font-family: sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">Score: <span id="score">0</span></div>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let score = 0;
+        let gameOver = false;
+
+        // Player Object
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height - 100,
+            size: 40,
+            color: '#00ffcc',
+            speed: 8
+        };
+
+        // Enemy Logic
+        const enemies = [];
+        class Enemy {
+            constructor() {
+                this.size = 30 + Math.random() * 20;
+                this.x = Math.random() * (canvas.width - this.size);
+                this.y = -this.size;
+                this.speed = 3 + Math.random() * 4;
+                this.color = '#ff4d4d';
+            }
+
+            update() {
+                this.y += this.speed;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.size, this.size);
+            }
+        }
+
+        // Input Handling
+        const keys = {};
+        window.addEventListener('keydown', (e) => keys[e.key] = true);
+        window.addEventListener('keyup', (e) => keys[e.key] = false);
+
+        function handleInput() {
+            if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
+            if (keys['ArrowRight'] && player.x < canvas.width - player.size) player.x += player.speed;
+            if (keys['ArrowUp'] && player.y > 0) player.y -= player.speed;
+            if (keys['ArrowDown'] && player.y < canvas.height - player.size) player.y += player.speed;
+        }
+
+        // Collision Detection
+        function checkCollision(p, e) {
+            return p.x < e.x + e.size &&
+                   p.x + p.size > e.x &&
+                   p.y < e.y + e.size &&
+                   p.y + p.size > e.y;
+        }
+
+        // Spawn Loop
+        setInterval(() => {
+            if (!gameOver) enemies.push(new Enemy());
+        }, 800);
+
+        // Main Game Loop
+        function animate() {
+            if (gameOver) {
+                ctx.fillStyle = 'white';
+                ctx.font = '48px sans-serif';
+                ctx.fillText('GAME OVER', canvas.width / 2 - 130, canvas.height / 2);
+                return;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            handleInput();
+
+            // Draw Player
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x, player.y, player.size, player.size);
+
+            // Update/Draw Enemies
+            enemies.forEach((enemy, index) => {
+                enemy.update();
+                enemy.draw();
+
+                // Check for Hit
+                if (checkCollision(player, enemy)) {
+                    gameOver = true;
+                }
+
+                // Score and Cleanup
+                if (enemy.y > canvas.height) {
+                    enemies.splice(index, 1);
+                    score++;
+                    scoreElement.innerText = score;
+                }
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Handle Window Resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
 </script>
 </body>
 </html>
