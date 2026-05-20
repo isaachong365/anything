@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEON SURVIVOR</title>
+    <title>NEON SURVIVOR: MASTER MERGE</title>
     <style>
         body { margin: 0; background: #02040a; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; user-select: none; }
         canvas { display: block; }
@@ -17,6 +17,7 @@
         #overlay, #shop-overlay { position: absolute; inset: 0; background: rgba(2, 4, 10, 0.95); display: none; flex-direction: column; align-items: center; justify-content: center; pointer-events: all; z-index: 100; }
         .card { background: #0a0f1e; border: 2px solid #00e5ff; padding: 20px; margin: 10px; width: 240px; cursor: pointer; text-align: center; border-radius: 15px; transition: 0.3s; }
         .card:hover:not(.disabled) { background: #00e5ff; color: #000; transform: translateY(-5px); box-shadow: 0 0 20px #00e5ff; }
+        .disabled { opacity: 0.3; cursor: not-allowed; }
         button { padding: 15px 40px; background: #00e5ff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 18px; margin-top: 20px;}
     </style>
 </head>
@@ -24,9 +25,9 @@
 
 <div id="ui">
     <div style="font-size: 32px; font-weight: bold; color: #00e5ff;">SCORE: <span id="scoreText">0</span></div>
-    <div style="font-size: 14px; color: #ccff00;">SHARDS: <span id="shardText">0</span></div>
+    <div style="font-size: 14px; color: #ccff00;">TOTAL SHARDS: <span id="shardText">0</span></div>
     <div class="bar-container"><div id="hp-bar"></div></div>
-    <div style="font-size: 12px;">LEVEL <span id="lvlText">1</span></div>
+    <div style="font-size: 12px; letter-spacing: 2px;">LVL <span id="lvlText">1</span></div>
     <div class="bar-container"><div id="xp-bar"></div></div>
 </div>
 
@@ -35,36 +36,56 @@
     <div class="boss-bar-bg"><div id="boss-hp-fill"></div></div>
 </div>
 
-<div id="overlay"><h1>AUGMENT SYSTEM</h1><div id="choices"></div></div>
+<div id="overlay"><h1>AUGMENT ACQUIRED</h1><div id="choices" style="display:flex;"></div></div>
+
 <div id="shop-overlay">
-    <h1>RUN ENDED</h1>
-    <h2>TOTAL SHARDS: <span id="totalShards">0</span></h2>
-    <div id="shop-items" style="display:flex;"></div>
-    <button onclick="location.reload()">REDEPLOY</button>
+    <h1 style="color:#ff0055">SYSTEM TERMINATED</h1>
+    <h2 style="color:#fff">WALLET: <span id="walletShards">0</span></h2>
+    <div id="shop-items" style="display:flex; flex-wrap: wrap; justify-content: center;"></div>
+    <button onclick="location.reload()">RE-INITIALIZE RUN</button>
 </div>
 
 <canvas id="game"></canvas>
 
 <script>
+// --- AUDIO ENGINE ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSfx(freq, type, dur, vol=0.05) {
+    try {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + dur);
+    } catch(e) {}
+}
+
+// --- SETUP ---
 const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
 let w, h;
 const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
 window.onresize = resize; resize();
 
-const SAVE_KEY = "neon_v2";
+const SAVE_KEY = "neon_survivor_final_master";
 let meta = JSON.parse(localStorage.getItem(SAVE_KEY)) || { shards: 0, upgrades: { hp: 0, dmg: 0, speed: 0 } };
-const state = { running: true, score: 0, shards: 0, time: 0, shake: 0, bossActive: false };
+const save = () => localStorage.setItem(SAVE_KEY, JSON.stringify(meta));
+
+const state = { running: true, score: 0, sessionShards: 0, time: 0, shake: 0 };
 const keys = {};
-window.onkeydown = e => keys[e.code] = true;
+window.onkeydown = e => { keys[e.code] = true; if(audioCtx.state === 'suspended') audioCtx.resume(); };
 window.onkeyup = e => keys[e.code] = false;
 
+// --- CLASSES ---
 class Player {
     constructor() {
         this.x = 0; this.y = 0; this.r = 18; this.angle = 0;
-        this.speed = 4.5 + (meta.upgrades.speed * 0.5);
+        this.speed = 4.5 + (meta.upgrades.speed * 0.6);
         this.maxHp = 100 + (meta.upgrades.hp * 25);
         this.hp = this.maxHp;
-        this.bulletDmg = 35 + (meta.upgrades.dmg * 10);
+        this.bulletDmg = 40 + (meta.upgrades.dmg * 15);
         this.xp = 0; this.nextXP = 100; this.lvl = 1;
         this.fireRate = 450; this.lastShot = 0;
     }
@@ -86,38 +107,36 @@ class Player {
         if(this.xp >= this.nextXP) this.levelUp();
     }
     draw() {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.angle);
-        ctx.shadowBlur = 15; ctx.shadowColor = '#00e5ff';
-        ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 3;
-        ctx.beginPath(); // Draw triangle character
-        ctx.moveTo(this.r, 0); ctx.lineTo(-this.r, -this.r); ctx.lineTo(-this.r, this.r); ctx.closePath();
-        ctx.stroke();
-        ctx.restore();
+        ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+        ctx.shadowBlur = 15; ctx.shadowColor = '#00e5ff'; ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(this.r, 0); ctx.lineTo(-this.r, -this.r); ctx.lineTo(-this.r, this.r); ctx.closePath();
+        ctx.stroke(); ctx.restore();
     }
     shoot() {
-        let target = null, dMin = 600;
-        enemies.forEach(e => {
-            let d = Math.hypot(e.x-this.x, e.y-this.y);
-            if(d < dMin) { dMin = d; target = e; }
-        });
+        let target = enemies.reduce((p, c) => {
+            let d = Math.hypot(c.x-this.x, c.y-this.y);
+            return d < p.dist ? {o: c, dist: d} : p;
+        }, {o: null, dist: 700}).o;
         if(!target) return;
         this.lastShot = Date.now();
+        playSfx(600, 'sine', 0.1);
         bullets.push(new Bullet(this.x, this.y, Math.atan2(target.y-this.y, target.x-this.x), this.bulletDmg));
     }
     levelUp() {
         this.lvl++; this.xp = 0; this.nextXP *= 1.3;
+        playSfx(880, 'sine', 0.4, 0.1);
         document.getElementById('lvlText').innerText = this.lvl;
         state.running = false;
         document.getElementById('overlay').style.display = 'flex';
-        document.getElementById('choices').innerHTML = '<div class="card" onclick="upgrade(\'dmg\')"><h3>WEAPON OVERCLOCK</h3><p>+20 Damage</p></div><div class="card" onclick="upgrade(\'rate\')"><h3>FIRE RATE</h3><p>-15% Cooldown</p></div>';
+        document.getElementById('choices').innerHTML = `
+            <div class="card" onclick="augment('rate')"><h3>RAPID CORES</h3><p>Rate +20%</p></div>
+            <div class="card" onclick="augment('dmg')"><h3>HIGH TENSION</h3><p>Dmg +25</p></div>`;
     }
 }
 
-function upgrade(type) {
-    if(type==='dmg') player.bulletDmg += 20;
-    if(type==='rate') player.fireRate *= 0.85;
+function augment(type) {
+    if(type==='rate') player.fireRate *= 0.8;
+    if(type==='dmg') player.bulletDmg += 25;
     state.running = true;
     document.getElementById('overlay').style.display = 'none';
 }
@@ -125,68 +144,102 @@ function upgrade(type) {
 class Enemy {
     constructor(x, y, isBoss) {
         this.x = x; this.y = y; this.isBoss = isBoss;
-        this.r = isBoss ? 60 : 18; this.hp = isBoss ? 2000 : 60;
-        this.maxHp = this.hp; this.speed = isBoss ? 1 : 2.5;
+        this.r = isBoss ? 65 : 18; this.hp = isBoss ? 2500 : 70;
+        this.maxHp = this.hp; this.speed = isBoss ? 1.1 : 2.5;
     }
     update() {
         let a = Math.atan2(player.y-this.y, player.x-this.x);
         this.x += Math.cos(a)*this.speed; this.y += Math.sin(a)*this.speed;
-        if(Math.hypot(player.x-this.x, player.y-this.y) < this.r+player.r) {
+        if(Math.hypot(player.x-this.x, player.y-this.y) < this.r + player.r) {
             player.hp -= 0.5; state.shake = 5;
+            if(state.time % 20 === 0) playSfx(100, 'sawtooth', 0.1);
         }
     }
     draw() {
-        ctx.shadowBlur = 10; ctx.shadowColor = '#ff0055';
-        ctx.fillStyle = '#ff0055';
+        ctx.shadowBlur = 10; ctx.shadowColor = '#ff0055'; ctx.fillStyle = '#ff0055';
         ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
-        if(this.isBoss) document.getElementById('boss-hp-fill').style.width = (this.hp/this.maxHp*100)+'%';
+        if(this.isBoss) {
+            document.getElementById('boss-ui').style.display = 'flex';
+            document.getElementById('boss-hp-fill').style.width = (this.hp/this.maxHp*100)+'%';
+        }
     }
 }
 
 class Bullet {
-    constructor(x,y,a,d) { this.x=x; this.y=y; this.a=a; this.d=d; this.s=12; this.life=100; }
+    constructor(x,y,a,d) { this.x=x; this.y=y; this.a=a; this.d=d; this.s=15; this.life=100; }
     update() { this.x += Math.cos(this.a)*this.s; this.y += Math.sin(this.a)*this.s; this.life--; }
-    draw() { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI*2); ctx.fill(); }
+    draw() { ctx.fillStyle = '#ccff00'; ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI*2); ctx.fill(); }
 }
 
 const player = new Player(), enemies = [], bullets = [];
+
+function showShop() {
+    state.running = false;
+    document.getElementById('shop-overlay').style.display = 'flex';
+    document.getElementById('walletShards').innerText = meta.shards;
+    const items = document.getElementById('shop-items');
+    items.innerHTML = '';
+    const upgrades = [{k:'hp', n:'HULL'}, {k:'dmg', n:'CANON'}, {k:'speed', n:'THRUST'}];
+    upgrades.forEach(u => {
+        const cost = (meta.upgrades[u.k] + 1) * 50;
+        const card = document.createElement('div');
+        card.className = `card ${meta.shards < cost ? 'disabled' : ''}`;
+        card.innerHTML = `<h3>${u.n}</h3><p>LVL: ${meta.upgrades[u.k]}</p><p>Cost: ${cost}</p>`;
+        card.onclick = () => { if(meta.shards >= cost) { meta.shards -= cost; meta.upgrades[u.k]++; save(); showShop(); playSfx(400,'sine',0.2); } };
+        items.appendChild(card);
+    });
+}
+
+function drawGrid() {
+    ctx.strokeStyle = "rgba(0, 229, 255, 0.08)";
+    const size = 100;
+    const offX = -player.x % size;
+    const offY = -player.y % size;
+    ctx.beginPath();
+    for(let x=offX; x<w; x+=size) { ctx.moveTo(x,0); ctx.lineTo(x,h); }
+    for(let y=offY; y<h; y+=size) { ctx.moveTo(0,y); ctx.lineTo(w,y); }
+    ctx.stroke();
+}
 
 function loop() {
     if(state.running) {
         state.time++;
         player.update();
-        if(state.time % 60 === 0) enemies.push(new Enemy(player.x+Math.random()*800-400, player.y-600, false));
-        if(state.time === 2000) { state.bossActive = true; document.getElementById('boss-ui').style.display='flex'; enemies.push(new Enemy(player.x, player.y-400, true)); }
-        
-        bullets.forEach((b, i) => {
-            b.update();
-            if(b.life <= 0) bullets.splice(i, 1);
-            enemies.forEach((e, ei) => {
-                if(Math.hypot(b.x-e.x, b.y-e.y) < e.r) {
-                    e.hp -= b.d; b.life = 0;
-                    if(e.hp <= 0) {
-                        if(e.isBoss) document.getElementById('boss-ui').style.display='none';
-                        enemies.splice(ei, 1); state.score += 100; state.shards += 2;
+        if(state.time % 60 === 0) enemies.push(new Enemy(player.x + (Math.random()-0.5)*1500, player.y - 700, false));
+        if(state.time === 2000) enemies.push(new Enemy(player.x, player.y - 600, true));
+
+        // Debugged Reverse Collision Loop
+        for(let i=bullets.length-1; i>=0; i--) {
+            bullets[i].update();
+            if(bullets[i].life <= 0) { bullets.splice(i, 1); continue; }
+            for(let j=enemies.length-1; j>=0; j--) {
+                if(Math.hypot(bullets[i].x-enemies[j].x, bullets[i].y-enemies[j].y) < enemies[j].r) {
+                    enemies[j].hp -= bullets[i].d; bullets.splice(i, 1);
+                    if(enemies[j].hp <= 0) {
+                        playSfx(200, 'square', 0.1, 0.03);
+                        if(enemies[j].isBoss) document.getElementById('boss-ui').style.display='none';
+                        enemies.splice(j, 1); state.score += 100; state.sessionShards += 5;
                         player.xp += 25; document.getElementById('scoreText').innerText = state.score;
-                        document.getElementById('shardText').innerText = state.shards;
+                        document.getElementById('shardText').innerText = meta.shards + state.sessionShards;
                     }
+                    break;
                 }
-            });
-        });
+            }
+        }
         enemies.forEach(e => e.update());
-        if(player.hp <= 0) {
-            meta.shards += state.shards; localStorage.setItem(SAVE_KEY, JSON.stringify(meta));
-            document.getElementById('shop-overlay').style.display = 'flex';
-            document.getElementById('totalShards').innerText = meta.shards;
-            return;
+        if(player.hp <= 0) { 
+            playSfx(50, 'sawtooth', 0.6, 0.2);
+            meta.shards += state.sessionShards; save(); showShop(); return; 
         }
     }
-    ctx.fillStyle = '#02040a'; ctx.fillRect(0, 0, w, h);
+
+    // DRAW
+    ctx.fillStyle = '#02040a'; ctx.fillRect(0,0,w,h);
+    drawGrid();
     ctx.save();
-    ctx.translate(w/2 - player.x, h/2 - player.y);
-    player.draw();
-    enemies.forEach(e => e.draw());
-    bullets.forEach(b => b.draw());
+    if(state.shake > 0) { ctx.translate(Math.random()*state.shake, Math.random()*state.shake); state.shake *= 0.9; }
+    ctx.translate(w/2 - player.x, h/2 - player.y); // Debugged Camera Lock
+    player.draw(); enemies.forEach(e => e.draw()); bullets.forEach(b => b.draw());
     ctx.restore();
     requestAnimationFrame(loop);
 }
