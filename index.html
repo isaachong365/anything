@@ -6,6 +6,490 @@
 content="width=device-width, initial-scale=1.0, user-scalable=no">
 
 <title>Glow Survival</title>
+    
+    *{
+        margin:0;
+        padding:0;
+        box-sizing:border-box;
+        font-family:Arial, sans-serif;
+    }
+
+    body{
+        overflow:hidden;
+        background:black;
+        color:white;
+    }
+
+    canvas{
+        display:block;
+        background:
+            radial-gradient(circle at center, #111 0%, #000 70%);
+    }
+
+    #ui{
+        position:fixed;
+        top:10px;
+        left:10px;
+        z-index:10;
+        font-size:18px;
+        line-height:1.7;
+    }
+
+    #levelup{
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,0.8);
+        display:none;
+        justify-content:center;
+        align-items:center;
+        z-index:20;
+    }
+
+    .panel{
+        width:600px;
+        background:#111;
+        border:2px solid cyan;
+        padding:30px;
+        border-radius:20px;
+        box-shadow:0 0 30px cyan;
+    }
+
+    .panel h1{
+        text-align:center;
+        margin-bottom:20px;
+    }
+
+    .upgrade{
+        background:#222;
+        padding:20px;
+        margin:10px 0;
+        border-radius:10px;
+        cursor:pointer;
+        transition:0.2s;
+        border:1px solid #555;
+    }
+
+    .upgrade:hover{
+        transform:scale(1.03);
+        background:#333;
+        border-color:cyan;
+    }
+
+    #gameover{
+        position:fixed;
+        inset:0;
+        display:none;
+        justify-content:center;
+        align-items:center;
+        background:rgba(0,0,0,0.9);
+        z-index:30;
+        flex-direction:column;
+    }
+
+    button{
+        margin-top:20px;
+        padding:15px 30px;
+        border:none;
+        border-radius:10px;
+        background:cyan;
+        color:black;
+        font-size:20px;
+        cursor:pointer;
+    }
+</style>
+</head>
+<body>
+
+<div id="ui">
+    <div>HP: <span id="hp">100</span></div>
+    <div>Level: <span id="level">1</span></div>
+    <div>XP: <span id="xp">0</span>/<span id="xpNeed">5</span></div>
+    <div>Wave: <span id="wave">1</span></div>
+    <div>Weapon: <span id="weapon">Blaster</span></div>
+</div>
+
+<div id="levelup">
+    <div class="panel">
+        <h1>LEVEL UP</h1>
+        <div id="upgrades"></div>
+    </div>
+</div>
+
+<div id="gameover">
+    <h1 style="font-size:60px;">GAME OVER</h1>
+    <button onclick="location.reload()">RESTART</button>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+const hpText = document.getElementById("hp");
+const levelText = document.getElementById("level");
+const xpText = document.getElementById("xp");
+const xpNeedText = document.getElementById("xpNeed");
+const waveText = document.getElementById("wave");
+const weaponText = document.getElementById("weapon");
+
+let shake = 0;
+
+const player = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    size: 20,
+    speed: 5,
+    hp: 100,
+    level: 1,
+    xp: 0,
+    xpNeed: 5,
+    damage: 20,
+    fireRate: 250,
+    bullets: 1,
+    weapon: "Blaster"
+};
+
+const keys = {};
+const bullets = [];
+const enemies = [];
+const particles = [];
+const xpGems = [];
+
+let wave = 1;
+let gameOver = false;
+
+document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+function rand(min,max){
+    return Math.random()*(max-min)+min;
+}
+
+function spawnEnemy(){
+    const side = Math.floor(Math.random()*4);
+
+    let x,y;
+
+    if(side===0){
+        x=0;
+        y=rand(0,canvas.height);
+    }else if(side===1){
+        x=canvas.width;
+        y=rand(0,canvas.height);
+    }else if(side===2){
+        x=rand(0,canvas.width);
+        y=0;
+    }else{
+        x=rand(0,canvas.width);
+        y=canvas.height;
+    }
+
+    const types = [
+        {speed:1.5,size:15,hp:30,color:"red"},
+        {speed:0.8,size:30,hp:80,color:"orange"},
+        {speed:3,size:10,hp:15,color:"yellow"}
+    ];
+
+    const type = types[Math.floor(Math.random()*types.length)];
+
+    enemies.push({
+        x,
+        y,
+        ...type
+    });
+}
+
+setInterval(()=>{
+    if(!gameOver){
+        for(let i=0;i<wave+2;i++){
+            spawnEnemy();
+        }
+        wave++;
+        waveText.textContent = wave;
+    }
+},4000);
+
+function shoot(){
+    const nearest = enemies.reduce((a,b)=>{
+        const da = Math.hypot(player.x-a.x,player.y-a.y);
+        const db = Math.hypot(player.x-b.x,player.y-b.y);
+        return db<da ? b : a;
+    }, enemies[0]);
+
+    if(!nearest) return;
+
+    const angle = Math.atan2(nearest.y-player.y, nearest.x-player.x);
+
+    for(let i=0;i<player.bullets;i++){
+
+        const spread = (i - (player.bullets-1)/2) * 0.2;
+
+        bullets.push({
+            x: player.x,
+            y: player.y,
+            dx: Math.cos(angle+spread)*10,
+            dy: Math.sin(angle+spread)*10,
+            size: 6
+        });
+    }
+
+    shake = 5;
+}
+
+setInterval(()=>{
+    if(!gameOver) shoot();
+}, player.fireRate);
+
+function createParticles(x,y,color,count){
+    for(let i=0;i<count;i++){
+        particles.push({
+            x,
+            y,
+            dx: rand(-3,3),
+            dy: rand(-3,3),
+            life: 30,
+            color
+        });
+    }
+}
+
+function levelUp(){
+    document.getElementById("levelup").style.display = "flex";
+
+    const upgrades = [
+        {
+            name:"+20% Fire Rate",
+            apply(){
+                player.fireRate *= 0.8;
+            }
+        },
+        {
+            name:"+1 Projectile",
+            apply(){
+                player.bullets++;
+            }
+        },
+        {
+            name:"+10 Damage",
+            apply(){
+                player.damage += 10;
+            }
+        },
+        {
+            name:"Heal 30 HP",
+            apply(){
+                player.hp += 30;
+            }
+        }
+    ];
+
+    const chosen = [];
+
+    while(chosen.length < 3){
+        const up = upgrades[Math.floor(Math.random()*upgrades.length)];
+        if(!chosen.includes(up)) chosen.push(up);
+    }
+
+    const container = document.getElementById("upgrades");
+    container.innerHTML = "";
+
+    chosen.forEach(up=>{
+        const div = document.createElement("div");
+        div.className = "upgrade";
+        div.textContent = up.name;
+
+        div.onclick = ()=>{
+            up.apply();
+
+            player.level++;
+            player.xp = 0;
+            player.xpNeed += 5;
+
+            levelText.textContent = player.level;
+            xpText.textContent = player.xp;
+            xpNeedText.textContent = player.xpNeed;
+
+            document.getElementById("levelup").style.display = "none";
+        };
+
+        container.appendChild(div);
+    });
+}
+
+function update(){
+
+    if(keys["w"]) player.y -= player.speed;
+    if(keys["s"]) player.y += player.speed;
+    if(keys["a"]) player.x -= player.speed;
+    if(keys["d"]) player.x += player.speed;
+
+    bullets.forEach((b,bi)=>{
+        b.x += b.dx;
+        b.y += b.dy;
+
+        enemies.forEach((e,ei)=>{
+            const dist = Math.hypot(b.x-e.x,b.y-e.y);
+
+            if(dist < e.size+b.size){
+
+                e.hp -= player.damage;
+
+                createParticles(e.x,e.y,e.color,10);
+
+                bullets.splice(bi,1);
+
+                if(e.hp<=0){
+
+                    xpGems.push({
+                        x:e.x,
+                        y:e.y,
+                        size:8
+                    });
+
+                    enemies.splice(ei,1);
+                }
+            }
+        });
+    });
+
+    enemies.forEach(e=>{
+
+        const angle = Math.atan2(player.y-e.y, player.x-e.x);
+
+        e.x += Math.cos(angle)*e.speed;
+        e.y += Math.sin(angle)*e.speed;
+
+        const dist = Math.hypot(player.x-e.x, player.y-e.y);
+
+        if(dist < player.size+e.size){
+
+            player.hp -= 0.2;
+
+            hpText.textContent = Math.floor(player.hp);
+
+            shake = 10;
+
+            if(player.hp <= 0){
+                gameOver = true;
+                document.getElementById("gameover").style.display = "flex";
+            }
+        }
+    });
+
+    xpGems.forEach((g,gi)=>{
+
+        const dx = player.x-g.x;
+        const dy = player.y-g.y;
+        const dist = Math.hypot(dx,dy);
+
+        if(dist < 150){
+
+            g.x += dx*0.03;
+            g.y += dy*0.03;
+        }
+
+        if(dist < 20){
+
+            player.xp++;
+
+            xpText.textContent = player.xp;
+
+            xpGems.splice(gi,1);
+
+            if(player.xp >= player.xpNeed){
+                levelUp();
+            }
+        }
+    });
+
+    particles.forEach((p,pi)=>{
+        p.x += p.dx;
+        p.y += p.dy;
+        p.life--;
+
+        if(p.life<=0){
+            particles.splice(pi,1);
+        }
+    });
+}
+
+function draw(){
+
+    ctx.save();
+
+    if(shake>0){
+        ctx.translate(rand(-shake,shake), rand(-shake,shake));
+        shake *= 0.9;
+    }
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    ctx.shadowBlur = 20;
+
+    ctx.shadowColor = "cyan";
+    ctx.fillStyle = "cyan";
+
+    ctx.beginPath();
+    ctx.arc(player.x,player.y,player.size,0,Math.PI*2);
+    ctx.fill();
+
+    bullets.forEach(b=>{
+        ctx.shadowColor = "white";
+        ctx.fillStyle = "white";
+
+        ctx.beginPath();
+        ctx.arc(b.x,b.y,b.size,0,Math.PI*2);
+        ctx.fill();
+    });
+
+    enemies.forEach(e=>{
+        ctx.shadowColor = e.color;
+        ctx.fillStyle = e.color;
+
+        ctx.beginPath();
+        ctx.arc(e.x,e.y,e.size,0,Math.PI*2);
+        ctx.fill();
+    });
+
+    xpGems.forEach(g=>{
+        ctx.shadowColor = "lime";
+        ctx.fillStyle = "lime";
+
+        ctx.beginPath();
+        ctx.arc(g.x,g.y,g.size,0,Math.PI*2);
+        ctx.fill();
+    });
+
+    particles.forEach(p=>{
+        ctx.shadowColor = p.color;
+        ctx.fillStyle = p.color;
+
+        ctx.globalAlpha = p.life/30;
+
+        ctx.fillRect(p.x,p.y,4,4);
+
+        ctx.globalAlpha = 1;
+    });
+
+    ctx.restore();
+}
+
+function loop(){
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+loop();
+
+window.addEventListener("resize",()=>{
+    canvas.width = innerWidth;
+    canvas.height = innerHeight;
+});
 
 <style>
 
