@@ -1,121 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Glow Survival</title>
-    
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background: black;
-        }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Glow Survival (Clean)</title>
 
-        canvas {
-            display: block;
-        }
-    </style>
-</head>
-<body>
-
-<canvas id="game"></canvas>
-
-<script>
-// ======================
-// GAME VARIABLES
-// ======================
-
-let wave = 1;
-let enemies = [];
-let enemiesAlive = 0;
-let waveInProgress = false;
-
-// ======================
-// SPAWN ENEMIES
-// ======================
-
-function spawnWave() {
-    waveInProgress = true;
-
-    let amount = wave * 3;
-
-    enemiesAlive = amount;
-    enemies = [];
-
-    for (let i = 0; i < amount; i++) {
-        enemies.push({
-            hp: 100
-        });
-    }
-
-    console.log("Wave", wave, "spawned");
-}
-
-// ======================
-// KILL ENEMY
-// ======================
-
-function killEnemy(index) {
-    enemies.splice(index, 1);
-
-    enemiesAlive--;
-
-    console.log("Enemies left:", enemiesAlive);
-
-    // NEXT WAVE
-    if (enemiesAlive <= 0) {
-        waveInProgress = false;
-
-        wave++;
-
-        setTimeout(() => {
-            spawnWave();
-        }, 2000);
-    }
-}
-
-// ======================
-// GAME LOOP
-// ======================
-
-function gameLoop() {
-
-    // Example auto-kill enemy every second
-    if (waveInProgress && enemies.length > 0) {
-        killEnemy(0);
-    }
-
-    requestAnimationFrame(gameLoop);
-}
-
-// ======================
-// START GAME
-// ======================
-
-spawnWave();
-
-setInterval(() => {
-    if (waveInProgress && enemies.length > 0) {
-        killEnemy(0);
-    }
-}, 1000);
-
-gameLoop();
-
-</script>
-    
 <style>
-*{
+html,body{
     margin:0;
     padding:0;
-    box-sizing:border-box;
-}
-
-html,body{
     overflow:hidden;
     background:#050816;
-    font-family:Arial,sans-serif;
+    font-family:Arial;
 }
 
 canvas{
@@ -128,54 +24,31 @@ canvas{
     left:10px;
     color:white;
     z-index:10;
-    font-size:18px;
+    font-size:16px;
+    line-height:1.5;
 }
 
-#upgradeMenu{
-    position:absolute;
-    inset:0;
-    display:none;
-    justify-content:center;
-    align-items:center;
-    background:rgba(0,0,0,0.8);
-    z-index:20;
-}
-
-.upgradeContainer{
-    display:flex;
-    gap:20px;
-}
-
-.card{
-    width:200px;
-    padding:20px;
-    border-radius:12px;
-    background:#101828;
-    border:2px solid #00e5ff;
-    color:white;
-    cursor:pointer;
-    text-align:center;
-}
-
-#gameOver{
+#upgradeMenu, #gameOver{
     position:absolute;
     inset:0;
     display:none;
     justify-content:center;
     align-items:center;
     flex-direction:column;
-    background:rgba(0,0,0,0.9);
+    background:rgba(0,0,0,0.8);
     color:white;
-    z-index:30;
+    z-index:20;
 }
 
-button{
-    padding:14px 28px;
-    font-size:18px;
-    border:none;
-    border-radius:10px;
+.card{
+    background:#101828;
+    border:2px solid #00e5ff;
+    padding:15px;
+    margin:10px;
     cursor:pointer;
-    background:#00e5ff;
+    border-radius:10px;
+    min-width:120px;
+    text-align:center;
 }
 </style>
 </head>
@@ -185,25 +58,21 @@ button{
 <canvas id="game"></canvas>
 
 <div id="ui">
-    <div id="score">Score: 0</div>
-    <div id="level">Level: 1</div>
-    <div id="xp">XP: 0 / 100</div>
-    <div id="wave">Wave: 1</div>
-    <div id="health">HP: 100</div>
-    <div id="weapon">Weapon: Blaster</div>
+<div id="score">Score: 0</div>
+<div id="level">Level: 1</div>
+<div id="xp">XP: 0/100</div>
+<div id="wave">Wave: 1</div>
+<div id="hp">HP: 100</div>
 </div>
 
-<div id="upgradeMenu">
-    <div class="upgradeContainer" id="upgradeCards"></div>
-</div>
+<div id="upgradeMenu"></div>
 
 <div id="gameOver">
-    <h1>GAME OVER</h1>
-    <button onclick="location.reload()">PLAY AGAIN</button>
+<h1>GAME OVER</h1>
+<button onclick="location.reload()">Restart</button>
 </div>
 
 <script>
-
 // =====================
 // CANVAS
 // =====================
@@ -229,13 +98,11 @@ addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 // =====================
 let bullets = [];
 let enemies = [];
-let particles = [];
 let gems = [];
 
 let score = 0;
 let wave = 1;
 let running = true;
-let shake = 0;
 
 // =====================
 // PLAYER
@@ -244,11 +111,10 @@ class Player{
     constructor(){
         this.x = canvas.width/2;
         this.y = canvas.height/2;
-        this.radius = 20;
+        this.r = 18;
         this.speed = 5;
-        this.hp = 100;
 
-        this.weapon = "Blaster";
+        this.hp = 100;
         this.damage = 20;
 
         this.xp = 0;
@@ -256,7 +122,7 @@ class Player{
         this.level = 1;
 
         this.lastShot = 0;
-        this.fireRate = 250;
+        this.fireRate = 300;
     }
 
     update(){
@@ -269,11 +135,11 @@ class Player{
 
         const len = Math.hypot(dx,dy) || 1;
 
-        this.x += (dx/len) * this.speed;
-        this.y += (dy/len) * this.speed;
+        this.x += (dx/len)*this.speed;
+        this.y += (dy/len)*this.speed;
 
-        this.x = Math.max(this.radius, Math.min(canvas.width-this.radius,this.x));
-        this.y = Math.max(this.radius, Math.min(canvas.height-this.radius,this.y));
+        this.x = Math.max(this.r, Math.min(canvas.width-this.r,this.x));
+        this.y = Math.max(this.r, Math.min(canvas.height-this.r,this.y));
 
         if(Date.now() - this.lastShot > this.fireRate){
             this.shoot();
@@ -282,31 +148,28 @@ class Player{
     }
 
     shoot(){
-        const target = getNearestEnemy();
-        if(!target) return;
+        const e = enemies[0];
+        if(!e) return;
 
-        const angle = Math.atan2(target.y-this.y, target.x-this.x);
-
-        bullets.push(new Bullet(this.x,this.y,angle,this.damage));
+        const a = Math.atan2(e.y-this.y, e.x-this.x);
+        bullets.push(new Bullet(this.x,this.y,a,this.damage));
     }
 
     draw(){
         ctx.beginPath();
-        ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);
-        ctx.fillStyle = "#00e5ff";
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = "#00e5ff";
+        ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+        ctx.fillStyle="#00e5ff";
         ctx.fill();
     }
 
     gainXP(x){
         this.xp += x;
 
-        while(this.xp >= this.nextXP){
+        if(this.xp >= this.nextXP){
             this.xp -= this.nextXP;
             this.level++;
             this.nextXP += 50;
-            openUpgradeMenu();
+            openUpgrade();
         }
     }
 }
@@ -319,14 +182,14 @@ class Bullet{
         this.x=x;
         this.y=y;
         this.a=a;
-        this.speed=12;
-        this.damage=d;
-        this.r=6;
+        this.d=d;
+        this.s=10;
+        this.r=5;
     }
 
     update(){
-        this.x += Math.cos(this.a)*this.speed;
-        this.y += Math.sin(this.a)*this.speed;
+        this.x += Math.cos(this.a)*this.s;
+        this.y += Math.sin(this.a)*this.s;
     }
 
     draw(){
@@ -341,21 +204,17 @@ class Bullet{
 // ENEMY
 // =====================
 class Enemy{
-    constructor(type="normal"){
+    constructor(){
         const side = Math.floor(Math.random()*4);
 
-        if(side===0){ this.x=-50; this.y=Math.random()*canvas.height; }
-        if(side===1){ this.x=canvas.width+50; this.y=Math.random()*canvas.height; }
-        if(side===2){ this.x=Math.random()*canvas.width; this.y=-50; }
-        if(side===3){ this.x=Math.random()*canvas.width; this.y=canvas.height+50; }
+        if(side===0){this.x=-40; this.y=Math.random()*canvas.height;}
+        if(side===1){this.x=canvas.width+40; this.y=Math.random()*canvas.height;}
+        if(side===2){this.x=Math.random()*canvas.width; this.y=-40;}
+        if(side===3){this.x=Math.random()*canvas.width; this.y=canvas.height+40;}
 
-        this.radius = 20;
-        this.hp = 50;
-        this.speed = 2;
-        this.color = "red";
-
-        if(type==="fast"){ this.speed=5; this.hp=20; this.color="yellow"; }
-        if(type==="tank"){ this.speed=1; this.hp=200; this.radius=40; this.color="purple"; }
+        this.r = 18;
+        this.hp = 40 + wave*5;
+        this.speed = 1.5 + wave*0.05;
     }
 
     update(){
@@ -366,8 +225,8 @@ class Enemy{
 
     draw(){
         ctx.beginPath();
-        ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);
-        ctx.fillStyle=this.color;
+        ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+        ctx.fillStyle="red";
         ctx.fill();
     }
 }
@@ -379,7 +238,7 @@ class Gem{
     constructor(x,y){
         this.x=x;
         this.y=y;
-        this.r=8;
+        this.r=6;
     }
 
     update(){
@@ -389,7 +248,7 @@ class Gem{
         this.x += dx*0.02;
         this.y += dy*0.02;
 
-        if(Math.hypot(dx,dy) < 25){
+        if(Math.hypot(dx,dy)<20){
             player.gainXP(20);
             score += 10;
             return true;
@@ -406,70 +265,44 @@ class Gem{
 }
 
 // =====================
-// FUNCTIONS
+// SYSTEMS
 // =====================
-function getNearestEnemy(){
-    let best=null,dist=1e9;
-
-    for(const e of enemies){
-        const d=Math.hypot(e.x-player.x,e.y-player.y);
-        if(d<dist){dist=d;best=e;}
-    }
-
-    return best;
-}
-
 function spawnEnemy(){
     if(!running) return;
-
-    let type="normal";
-    let r=Math.random();
-
-    if(r<0.2) type="fast";
-    else if(r<0.35) type="tank";
-
-    enemies.push(new Enemy(type));
-
-    setTimeout(spawnEnemy, Math.max(250,1000-wave*30));
+    enemies.push(new Enemy());
+    setTimeout(spawnEnemy, Math.max(300, 1200-wave*20));
 }
 
-function openUpgradeMenu(){
+function openUpgrade(){
     running=false;
 
-    const menu=document.getElementById("upgradeMenu");
-    const box=document.getElementById("upgradeCards");
-
+    const menu = document.getElementById("upgradeMenu");
+    menu.innerHTML="";
     menu.style.display="flex";
-    box.innerHTML="";
 
-    const upgrades=[
-        {name:"Damage",fn:()=>player.damage+=10},
-        {name:"Speed",fn:()=>player.speed+=1},
-        {name:"Heal",fn:()=>player.hp+=30},
-        {name:"Fire Rate",fn:()=>player.fireRate=Math.max(60,player.fireRate-30)}
+    const upgrades = [
+        ()=>player.damage+=5,
+        ()=>player.speed+=0.5,
+        ()=>player.hp+=20,
+        ()=>player.fireRate=Math.max(80,player.fireRate-30)
     ];
 
-    const pick=[];
+    for(let i=0;i<3;i++){
+        const u = upgrades[Math.floor(Math.random()*upgrades.length)];
 
-    while(pick.length<3){
-        const u=upgrades[Math.floor(Math.random()*upgrades.length)];
-        if(!pick.includes(u)) pick.push(u);
-    }
-
-    pick.forEach(u=>{
-        const c=document.createElement("div");
+        const c = document.createElement("div");
         c.className="card";
-        c.innerHTML=u.name;
+        c.innerText="Upgrade";
 
-        c.onclick=()=>{
-            u.fn();
+        c.onclick = ()=>{
+            u();
             menu.style.display="none";
             running=true;
-            requestAnimationFrame(loop);
+            loop();
         };
 
-        box.appendChild(c);
-    });
+        menu.appendChild(c);
+    }
 }
 
 // =====================
@@ -485,7 +318,6 @@ function loop(){
     if(!running) return;
 
     requestAnimationFrame(loop);
-
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
     player.update();
@@ -499,21 +331,21 @@ function loop(){
 
         if(b.x<0||b.x>canvas.width||b.y<0||b.y>canvas.height){
             bullets.splice(i,1);
+            continue;
         }
 
         for(let j=enemies.length-1;j>=0;j--){
             let e=enemies[j];
 
-            if(Math.hypot(b.x-e.x,b.y-e.y)<e.radius){
-                e.hp-=b.damage;
+            if(Math.hypot(b.x-e.x,b.y-e.y)<e.r){
+                e.hp -= b.d;
                 bullets.splice(i,1);
 
                 if(e.hp<=0){
                     enemies.splice(j,1);
                     gems.push(new Gem(e.x,e.y));
-                    score+=20;
+                    score += 20;
                 }
-
                 break;
             }
         }
@@ -524,8 +356,8 @@ function loop(){
         e.update();
         e.draw();
 
-        if(Math.hypot(player.x-e.x,player.y-e.y)<e.radius+player.radius){
-            player.hp-=0.2;
+        if(Math.hypot(player.x-e.x,player.y-e.y)<e.r+player.r){
+            player.hp -= 0.5;
         }
     }
 
@@ -535,14 +367,15 @@ function loop(){
         else gems[i].draw();
     }
 
-    // wave system (YOUR ORIGINAL IDEA FIXED)
-    wave = 1 + Math.floor(score/400);
+    // wave system
+    wave = 1 + Math.floor(score/300);
 
+    // UI
     document.getElementById("score").innerText="Score: "+score;
     document.getElementById("level").innerText="Level: "+player.level;
     document.getElementById("xp").innerText=`XP: ${player.xp}/${player.nextXP}`;
     document.getElementById("wave").innerText="Wave: "+wave;
-    document.getElementById("health").innerText="HP: "+Math.floor(player.hp);
+    document.getElementById("hp").innerText="HP: "+Math.floor(player.hp);
 
     if(player.hp<=0){
         running=false;
