@@ -4,7 +4,107 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Glow Survival</title>
+    
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: black;
+        }
 
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<script>
+// ======================
+// GAME VARIABLES
+// ======================
+
+let wave = 1;
+let enemies = [];
+let enemiesAlive = 0;
+let waveInProgress = false;
+
+// ======================
+// SPAWN ENEMIES
+// ======================
+
+function spawnWave() {
+    waveInProgress = true;
+
+    let amount = wave * 3;
+
+    enemiesAlive = amount;
+    enemies = [];
+
+    for (let i = 0; i < amount; i++) {
+        enemies.push({
+            hp: 100
+        });
+    }
+
+    console.log("Wave", wave, "spawned");
+}
+
+// ======================
+// KILL ENEMY
+// ======================
+
+function killEnemy(index) {
+    enemies.splice(index, 1);
+
+    enemiesAlive--;
+
+    console.log("Enemies left:", enemiesAlive);
+
+    // NEXT WAVE
+    if (enemiesAlive <= 0) {
+        waveInProgress = false;
+
+        wave++;
+
+        setTimeout(() => {
+            spawnWave();
+        }, 2000);
+    }
+}
+
+// ======================
+// GAME LOOP
+// ======================
+
+function gameLoop() {
+
+    // Example auto-kill enemy every second
+    if (waveInProgress && enemies.length > 0) {
+        killEnemy(0);
+    }
+
+    requestAnimationFrame(gameLoop);
+}
+
+// ======================
+// START GAME
+// ======================
+
+spawnWave();
+
+setInterval(() => {
+    if (waveInProgress && enemies.length > 0) {
+        killEnemy(0);
+    }
+}, 1000);
+
+gameLoop();
+
+</script>
+    
 <style>
 *{
     margin:0;
