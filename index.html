@@ -22,11 +22,16 @@
         #menu-overlay, #shop-overlay { position: absolute; inset: 0; background: rgba(2, 4, 10, 0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: all; z-index: 100; backdrop-filter: blur(10px); }
         #shop-overlay { display: none; }
         
-        .upgrade-card { background: rgba(255,255,255,0.05); border: 1px solid var(--neon-blue); padding: 15px; border-radius: 12px; width: 140px; text-align: center; cursor: pointer; margin: 5px; }
+        .upgrade-card { background: rgba(255,255,255,0.05); border: 1px solid var(--neon-blue); padding: 15px; border-radius: 12px; width: 140px; text-align: center; cursor: pointer; margin: 5px; transition: 0.3s; }
+        .upgrade-card:hover { background: var(--neon-blue); color: #000; transform: translateY(-5px); }
         button { padding: 15px 40px; background: var(--neon-blue); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: #000; box-shadow: 0 0 15px var(--neon-blue); }
+        
+        #streak-ui { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-size: 28px; font-weight: bold; color: var(--neon-green); opacity: 0; transition: 0.2s; z-index: 10; text-shadow: 0 0 10px var(--neon-green); }
     </style>
 </head>
 <body>
+
+<div id="streak-ui">X1</div>
 
 <div id="menu-overlay">
     <h1 style="color: var(--neon-blue); font-size: clamp(32px, 8vw, 64px);">NEON SURVIVOR</h1>
@@ -62,19 +67,27 @@
 <canvas id="game"></canvas>
 
 <script>
-// Logic starts here
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSfx(f, t, d, v=0.03) {
+    try {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        let o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = t; o.frequency.setValueAtTime(f, audioCtx.currentTime);
+        g.gain.setValueAtTime(v, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d);
+        o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + d);
+    } catch(e){}
+}
+
 const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
 const mCanvas = document.getElementById('minimap-canvas'), mCtx = mCanvas.getContext('2d');
-let w, h, player, enemies = [], lasers = [], gems = [], particles = [], boss = null;
-let shootTimer = 0, skillTimer = 0, cam = {x:0, y:0, zoom:1};
+let w, h, player, enemies = [], lasers = [], gems = [], particles = [], stars = [], boss = null;
+let shootTimer = 0, skillTimer = 0, cam = {x:0, y:0, zoom:1}, streak = 0, streakTimer = 0;
 const SAVE_KEY = "neon_zenith_vfinal";
 
 let meta = JSON.parse(localStorage.getItem(SAVE_KEY)) || { shards: 0, hpLvl: 0, speedLvl: 0 };
 const state = { running: false, score: 0, lastBossScore: 0, sessionShards: 0, difficulty: 1, skillCooldown: 5000 };
 let keys = {};
 
-// Input Logic
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 let joyPos = { x: 0, y: 0, active: false };
 
@@ -88,8 +101,7 @@ if(isMobile) {
 
 function updateJoy(t) {
     const rect = document.getElementById('joystick-zone').getBoundingClientRect();
-    const dx = t.clientX - (rect.left + 60), dy = t.clientY - (rect.top + 60);
-    const dist = Math.hypot(dx, dy), max = 45;
+    const dx = t.clientX - (rect.left + 60), dy = t.clientY - (rect.top + 60), dist = Math.hypot(dx, dy), max = 45;
     joyPos.x = (dist > max ? dx * (max/dist) : dx) / max;
     joyPos.y = (dist > max ? dy * (max/dist) : dy) / max;
     document.getElementById('joystick-stick').style.transform = `translate(${joyPos.x*45}px, ${joyPos.y*45}px)`;
@@ -100,9 +112,9 @@ window.onkeyup = e => keys[e.code] = false;
 
 function activateSkill() {
     if(Date.now() - skillTimer < state.skillCooldown) return;
-    skillTimer = Date.now();
+    skillTimer = Date.now(); playSfx(120, 'square', 0.5, 0.1);
     particles.push({ x: player.x, y: player.y, r: 10, isNova: true, life: 1.0 });
-    enemies.forEach(en => { if(Math.hypot(en.x - player.x, en.y - player.y) < 250) en.hp -= 15; });
+    enemies.forEach(en => { if(Math.hypot(en.x - player.x, en.y - player.y) < 300) en.hp -= 20; });
 }
 
 class Player {
@@ -111,19 +123,26 @@ class Player {
         this.maxHp = 100 + (meta.hpLvl * 25); this.hp = this.maxHp;
         this.xp = 0; this.maxXp = 50; this.lvl = 1;
         this.speed = 4 + (meta.speedLvl * 0.4);
-        this.orbAngle = 0;
+        this.orbAngle = 0; this.shield = 0;
     }
     update() {
         let mx = joyPos.active ? joyPos.x : (keys['KeyD']-keys['KeyA'] || keys['ArrowRight']-keys['ArrowLeft'] || 0);
         let my = joyPos.active ? joyPos.y : (keys['KeyS']-keys['KeyW'] || keys['ArrowDown']-keys['ArrowUp'] || 0);
         if(mx || my) { let m = Math.hypot(mx,my); this.x += (mx/m)*this.speed; this.y += (my/m)*this.speed; }
         this.orbAngle += 0.05;
+        if(streakTimer > 0) streakTimer--; else streak = 0;
     }
     draw() {
-        ctx.fillStyle = '#0ff'; ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 15; ctx.shadowColor = '#0ff'; ctx.fillStyle = '#0ff';
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
+        if(this.shield > 0) {
+            ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.r + 10, 0, Math.PI*2); ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
         for(let i=0; i<3; i++) {
-            let ang = this.orbAngle + (i * Math.PI * 2 / 3);
-            let ox = this.x + Math.cos(ang) * 65, oy = this.y + Math.sin(ang) * 65;
+            let a = this.orbAngle + (i * Math.PI * 2 / 3);
+            let ox = this.x + Math.cos(a)*65, oy = this.y + Math.sin(a)*65;
             ctx.fillStyle = '#bd00ff'; ctx.beginPath(); ctx.arc(ox, oy, 6, 0, Math.PI*2); ctx.fill();
         }
     }
@@ -133,16 +152,25 @@ function update(time) {
     if(!state.running) return;
     state.difficulty = 1 + (state.score / 5000);
     ctx.fillStyle = '#02040a'; ctx.fillRect(0, 0, w, h);
-    
+
+    // Parallax Stars
+    ctx.fillStyle = '#fff';
+    stars.forEach(s => {
+        let sx = (s.x - cam.x * s.z) % w; if(sx < 0) sx += w;
+        let sy = (s.y - cam.y * s.z) % h; if(sy < 0) sy += h;
+        ctx.fillRect(sx, sy, s.s, s.s);
+    });
+
     cam.x += (player.x - cam.x) * 0.1; cam.y += (player.y - cam.y) * 0.1;
     ctx.save(); ctx.translate(w/2 - cam.x, h/2 - cam.y);
     
     player.update(); player.draw();
 
-    // Shooting
+    // Weapon Logic
     if (time - shootTimer > (player.lvl >= 10 ? 60 : 400)) {
         let target = enemies.find(en => Math.hypot(en.x - player.x, en.y - player.y) < 600);
         if(target) {
+            playSfx(player.lvl >= 10?440:220, 'square', 0.1, 0.02);
             lasers.push({ x: player.x, y: player.y, tx: target.x, ty: target.y, life: 5 });
             target.hp -= 1; shootTimer = time;
         }
@@ -150,7 +178,7 @@ function update(time) {
 
     particles.forEach((p, i) => {
         if(p.isNova) {
-            p.r += 10; p.life -= 0.05;
+            p.r += 12; p.life -= 0.04;
             ctx.strokeStyle = `rgba(189,0,255,${p.life})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.stroke();
         }
         if(p.life <= 0) particles.splice(i, 1);
@@ -160,8 +188,13 @@ function update(time) {
         let a = Math.atan2(player.y-en.y, player.x-en.x);
         en.x += Math.cos(a)*(en.speed * state.difficulty); en.y += Math.sin(a)*(en.speed * state.difficulty);
         ctx.fillStyle = en.color; ctx.beginPath(); ctx.arc(en.x, en.y, en.r, 0, Math.PI*2); ctx.fill();
-        if(en.hp <= 0) { gems.push({x:en.x, y:en.y}); enemies.splice(i, 1); state.score += 10; }
-        if(Math.hypot(player.x-en.x, player.y-en.y) < player.r+en.r) player.hp -= 0.5;
+        if(en.hp <= 0) {
+            gems.push({x: en.x, y: en.y, type: Math.random() < 0.05 ? 'shield' : 'xp'});
+            enemies.splice(i, 1); state.score += 10 * (1 + Math.floor(streak/10));
+            streak++; streakTimer = 120;
+        } else if(Math.hypot(player.x-en.x, player.y-en.y) < player.r + en.r) {
+            if(player.shield > 0) { player.shield--; enemies.splice(i, 1); } else player.hp -= 0.5;
+        }
     });
 
     lasers.forEach((l, i) => {
@@ -170,27 +203,55 @@ function update(time) {
     });
 
     gems.forEach((g, i) => {
-        if(Math.hypot(player.x-g.x, player.y-g.y) < 100) { g.x += (player.x-g.x)*0.2; g.y += (player.y-g.y)*0.2; }
-        ctx.fillStyle = '#0ff'; ctx.fillRect(g.x, g.y, 6, 6);
-        if(Math.hypot(player.x-g.x, player.y-g.y) < 20) { gems.splice(i, 1); player.xp += 10; state.sessionShards++; }
+        if(Math.hypot(player.x-g.x, player.y-g.y) < 140) { g.x += (player.x-g.x)*0.2; g.y += (player.y-g.y)*0.2; }
+        ctx.fillStyle = g.type === 'shield' ? '#00e5ff' : '#ccff00'; ctx.fillRect(g.x-4, g.y-4, 8, 8);
+        if(Math.hypot(player.x-g.x, player.y-g.y) < 20) {
+            if(g.type === 'shield') player.shield = Math.min(3, player.shield + 1);
+            else player.xp += 10 * (1 + Math.floor(streak/10));
+            gems.splice(i, 1); state.sessionShards++;
+        }
     });
 
     ctx.restore();
 
-    // UI Updates
+    // UI & Streak
+    let mult = 1 + Math.floor(streak/10);
+    let sui = document.getElementById('streak-ui');
+    sui.innerText = `X${mult}`; sui.style.opacity = streak > 5 ? 1 : 0;
+    
     document.getElementById('hp-bar').style.width = (player.hp/player.maxHp*100)+'%';
     document.getElementById('xp-bar').style.width = (player.xp/player.maxXp*100)+'%';
     document.getElementById('skill-bar').style.width = Math.min(100, (Date.now()-skillTimer)/50)+'%';
     document.getElementById('scoreText').innerText = state.score;
     document.getElementById('shardText').innerText = meta.shards + state.sessionShards;
+    if(player.lvl >= 10) document.getElementById('weapon-status').innerText = "VORTEX BEAM";
 
-    if(player.hp <= 0) { state.running = false; meta.shards += state.sessionShards; localStorage.setItem(SAVE_KEY, JSON.stringify(meta)); document.getElementById('shop-overlay').style.display='flex'; }
-    if(Math.random() < 0.03) enemies.push({x:player.x+(Math.random()-0.5)*w*2, y:player.y+(Math.random()-0.5)*h*2, r:12, hp:1, speed:2, color:'#f05'});
+    if(player.hp <= 0) {
+        state.running = false; meta.shards += state.sessionShards;
+        localStorage.setItem(SAVE_KEY, JSON.stringify(meta));
+        document.getElementById('shop-overlay').style.display = 'flex';
+        document.getElementById('walletDisplay').innerText = meta.shards + " 💎";
+    }
     
+    if(Math.random() < 0.03) {
+        let t = Math.random();
+        enemies.push({x:player.x+(Math.random()-0.5)*w*2, y:player.y+(Math.random()-0.5)*h*2, r:t>0.8?22:12, hp:t>0.8?5:1, speed:t<0.2?4:2, color:t>0.8?'#bd00ff':(t<0.2?'#ccff00':'#f05')});
+    }
     requestAnimationFrame(update);
 }
 
-const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
+function buyMeta(type) {
+    let cost = (type === 'hp' ? meta.hpLvl : meta.speedLvl) * 150 + 100;
+    if(meta.shards >= cost) {
+        meta.shards -= cost; if(type === 'hp') meta.hpLvl++; else meta.speedLvl++;
+        localStorage.setItem(SAVE_KEY, JSON.stringify(meta));
+        document.getElementById('walletDisplay').innerText = meta.shards + " 💎";
+        document.getElementById('cost-hp').innerText = meta.hpLvl * 150 + 100;
+        document.getElementById('cost-speed').innerText = meta.speedLvl * 150 + 100;
+    }
+}
+
+const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; stars = Array.from({length:100},()=>({x:Math.random()*w, y:Math.random()*h, s:Math.random()*2, z:Math.random()})); };
 window.onresize = resize; resize();
 document.getElementById('start-btn').onclick = () => { player = new Player(); state.running = true; document.getElementById('menu-overlay').style.display='none'; document.getElementById('ui').style.display='block'; requestAnimationFrame(update); };
 </script>
